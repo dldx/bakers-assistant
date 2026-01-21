@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "sourdough-master-calculator",
+      "name": "bakers-assistant",
       "dependencies": {
         "@google/genai": "^1.38.0",
         "dexie": "^4.2.1",

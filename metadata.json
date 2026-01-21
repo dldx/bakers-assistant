@@ -1,5 +1,5 @@
 {
-  "name": "Sourdough Master Calculator",
+  "name": "Baker's Assistant",
   "description": "A professional-grade sourdough hydration calculator with ingredient bucketing, baker's percentages, and browser-side recipe persistence using Dexie.js.",
   "requestFramePermissions": []
 }

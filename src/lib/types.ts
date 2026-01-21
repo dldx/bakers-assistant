@@ -25,6 +25,7 @@ export interface Ingredient {
 
 export interface Recipe {
   id?: number;
+  uuid: string;
   name: string;
   ingredients: Ingredient[];
 
