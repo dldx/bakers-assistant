@@ -23,7 +23,11 @@
     onUpdateSyncKey: (key: string) => void;
   }>();
 
-  let tempSyncKey = $state(syncKey);
+  let tempSyncKey = $state("");
+
+  $effect(() => {
+    tempSyncKey = syncKey;
+  });
 </script>
 
 <div class="mx-auto py-12 max-w-4xl" in:fade>

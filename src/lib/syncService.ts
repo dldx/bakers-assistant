@@ -1,7 +1,7 @@
 import PartySocket from "partysocket";
 import { db } from "./db";
 import type { Recipe } from "./types";
-import { PUBLIC_PARTYKIT_HOST } from "$env/static/public";
+import { env } from "$env/dynamic/public";
 
 export class SyncService {
   private socket: PartySocket | null = null;
@@ -12,8 +12,8 @@ export class SyncService {
 
     this.onSyncCallback = onSync;
     this.socket = new PartySocket({
-        host: PUBLIC_PARTYKIT_HOST || "bakers-assistant.dldx.partykit.dev",
-      room: syncKey,
+        host: env.PUBLIC_PARTYKIT_HOST || "bakers-assistant.dldx.partykit.dev",
+        room: syncKey,
     });
 
     this.setupListeners();
