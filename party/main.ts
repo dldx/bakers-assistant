@@ -30,7 +30,7 @@ export default class VaultServer implements Party.Server {
 
       for (const recipe of data.recipes) {
         const existing = vault[recipe.uuid];
-        if (!existing || recipe.updatedAt > existing.updatedAt) {
+          if (!existing || (recipe.updatedAt && (!existing.updatedAt || recipe.updatedAt > existing.updatedAt))) {
           vault[recipe.uuid] = recipe;
           changed = true;
         }
@@ -40,6 +40,10 @@ export default class VaultServer implements Party.Server {
         await this.room.storage.put("vault", vault);
         // Send updated truth back to everyone (including sender) to ensure bidirectional sync
         this.room.broadcast(JSON.stringify({ type: "sync-all", vault }));
+      } else {
+          // Even if nothing changed on the server, send the current vault back to the
+          // requester so they can pull down any recipes they might be missing.
+          sender.send(JSON.stringify({ type: "sync-all", vault }));
       }
     }
 
