@@ -22,6 +22,11 @@ export class SyncService {
   private setupListeners() {
     if (!this.socket) return;
 
+      this.socket.addEventListener("open", async () => {
+          const recipes = await db.recipes.toArray();
+          this.socket?.send(JSON.stringify({ type: "sync-vault", recipes }));
+      });
+
     this.socket.addEventListener("message", async (e) => {
       try {
         const data = JSON.parse(e.data);

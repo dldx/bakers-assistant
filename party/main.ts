@@ -24,6 +24,25 @@ export default class VaultServer implements Party.Server {
       this.room.broadcast(message, [sender.id]);
     }
 
+    if (data.type === "sync-vault") {
+      const vault = await this.room.storage.get<Record<string, any>>("vault") || {};
+      let changed = false;
+
+      for (const recipe of data.recipes) {
+        const existing = vault[recipe.uuid];
+        if (!existing || recipe.updatedAt > existing.updatedAt) {
+          vault[recipe.uuid] = recipe;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await this.room.storage.put("vault", vault);
+        // Send updated truth back to everyone (including sender) to ensure bidirectional sync
+        this.room.broadcast(JSON.stringify({ type: "sync-all", vault }));
+      }
+    }
+
     if (data.type === "delete-recipe") {
       const vault = await this.room.storage.get<Record<string, any>>("vault") || {};
       delete vault[data.uuid];
