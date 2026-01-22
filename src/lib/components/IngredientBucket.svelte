@@ -41,7 +41,7 @@
         <Icon class="w-4 h-4 {meta.iconColor}" />
       </div>
       <h4
-        class="font-black text-[10px] text-slate-800 uppercase tracking-[0.2em]"
+        class="font-black text-[10px] text-slate-800 uppercase tracking-[0.2em] {isCookingMode ? 'opacity-50' : ''}"
       >
         {meta.label}
       </h4>
@@ -49,7 +49,7 @@
     <button
       onclick={onAdd}
       disabled={isCookingMode}
-      class="hover:bg-amber-50 disabled:opacity-30 p-1.5 rounded-lg text-amber-600 transition-colors disabled:cursor-not-allowed"
+      class="disabled:hidden hover:bg-amber-50 p-1.5 rounded-lg text-amber-600 transition-colors disabled:cursor-not-allowed"
     >
       <Plus class="w-5 h-5" />
     </button>
