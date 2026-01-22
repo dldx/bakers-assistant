@@ -4,24 +4,27 @@
   import { onMount } from "svelte";
   import Markdown from "svelte-exmarkdown";
   import { getBakerAssistantResponse } from "$lib/aiService";
-  import type { Ingredient } from "$lib/types";
+  import type { Ingredient, RecipeStage } from "$lib/types";
+  import { toast } from "svelte-sonner";
 
   interface Props {
     recipeName: string;
     ingredients: Ingredient[];
+    stages: RecipeStage[];
     hydration: number;
     portions: number;
     notes: string;
     onUpdateRecipe: (data: {
       recipeName?: string;
       ingredients?: any[];
+      stages?: RecipeStage[];
       portions?: number;
       targetHydration?: number;
       notes?: string;
     }) => void;
   }
 
-  let { recipeName, ingredients, hydration, portions, notes, onUpdateRecipe }: Props = $props();
+  let { recipeName, ingredients, stages, hydration, portions, notes, onUpdateRecipe }: Props = $props();
 
   let chatMessages = $state<{ role: "user" | "assistant"; content: string }[]>([]);
   let userInput = $state("");
@@ -49,6 +52,7 @@
     hasKey = true;
     isEditingKey = false;
     isSavingKey = false;
+    toast.success("API Key saved");
   }
 
   $effect(() => {
@@ -72,6 +76,7 @@
       const response = await getBakerAssistantResponse(chatMessages, {
         recipeName,
         ingredients,
+        stages,
         hydration,
         portions,
         notes,
@@ -87,6 +92,7 @@
 
       if (response.recipeUpdate) {
         onUpdateRecipe(response.recipeUpdate);
+        toast.info("Recipe updated by AI analysis");
       }
     } catch (e: any) {
       console.error("AI Assistant Error:", e);
@@ -109,6 +115,7 @@
         // as it might be a transient 403, but it's a good hint.
       }
 
+      toast.error(errorMessage);
       chatMessages.push({
         role: "assistant",
         content: errorMessage,
@@ -120,7 +127,7 @@
 </script>
 
 <div
-  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-3xl sm:rounded-[2rem] h-[500px] sm:h-[600px] overflow-hidden"
+  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-0 sm:rounded-4xl h-full min-h-[400px]"
 >
   <div
     class="flex justify-between items-center bg-slate-50/50 p-4 sm:p-6 border-slate-100 border-b"

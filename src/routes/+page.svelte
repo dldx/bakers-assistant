@@ -6,27 +6,31 @@
     Save,
     RotateCcw,
     Trash2,
-    PenLine,
-    Copy,
-    Calculator as CalcIcon,
-    BookOpen,
+    Croissant,
+    Puzzle,
     Wheat,
     Droplets,
     Dna,
     Zap,
     Cookie,
-    FlaskConical,
+    Stone,
     GlassWater,
     Gem,
     Flame,
     ChefHat,
   } from "lucide-svelte";
   import { db } from "$lib/db";
-  import { IngredientCategory, type Ingredient, type Recipe } from "$lib/types";
+  import { IngredientCategory, type Ingredient, type Recipe, type RecipeStage } from "$lib/types";
+  import { CATEGORY_META } from "$lib/constants";
   import IngredientBucket from "$lib/components/IngredientBucket.svelte";
   import NotesEditor from "$lib/components/NotesEditor.svelte";
   import AIChat from "$lib/components/AIChat.svelte";
-  import "../app.css"
+  import RecipeVault from "$lib/components/RecipeVault.svelte";
+  import { toast } from "svelte-sonner";
+  import { Switch } from "$lib/components/ui/switch";
+  import { Label } from "$lib/components/ui/label";
+  import { Input } from "$lib/components/ui/input";
+  import * as Field from "$lib/components/ui/field";
 
   // --- State Runes ---
   let ingredients = $state<Ingredient[]>([
@@ -35,15 +39,29 @@
       name: "Bread Flour",
       weight: 500,
       category: IngredientCategory.FLOUR,
+      stageId: "s1",
     },
-    { id: "2", name: "Water", weight: 350, category: IngredientCategory.WATER },
+    {
+      id: "2",
+      name: "Water",
+      weight: 350,
+      category: IngredientCategory.WATER,
+      stageId: "s1",
+    },
     {
       id: "3",
       name: "Sourdough Starter",
       weight: 100,
       category: IngredientCategory.LEAVENING,
+      stageId: "s1",
     },
-    { id: "4", name: "Salt", weight: 10, category: IngredientCategory.SALT },
+    {
+      id: "4",
+      name: "Salt",
+      weight: 10,
+      category: IngredientCategory.SALT,
+      stageId: "s1",
+    },
   ]);
 
   let recipeName = $state("My Sourdough Recipe");
@@ -51,6 +69,7 @@
   let portions = $state(1);
   let isScalingEnabled = $state(false);
   let isCookingMode = $state(false);
+  let stages = $state<RecipeStage[]>([{ id: "s1", name: "Main Dough" }]);
 
   let view = $state<"calculator" | "history">("calculator");
   let activeRecipeId = $state<number | null>(null);
@@ -66,6 +85,7 @@
   function captureState() {
     return JSON.stringify({
       ingredients: $state.snapshot(ingredients),
+      stages: $state.snapshot(stages),
       recipeName,
       notes,
       portions,
@@ -111,15 +131,36 @@
     savedRecipes = all.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
-  function addIngredient(category: IngredientCategory) {
+  function addIngredient(category: IngredientCategory, stageId?: string) {
     ingredients.push({
       id: Math.random().toString(36).substr(2, 9),
       name: "",
       weight: 0,
       category,
+      stageId,
       ...(category === IngredientCategory.LEAVENING ? { hydration: 100 } : {}),
     });
   }
+
+  function addStage() {
+    stages.push({
+      id: Math.random().toString(36).substr(2, 9),
+      name: `Stage ${stages.length + 1}`,
+    });
+  }
+
+  function removeStage(id: string) {
+    if (confirm("Remove this stage and all its ingredients?")) {
+      ingredients = ingredients.filter((ing) => ing.stageId !== id);
+      stages = stages.filter((s) => s.id !== id);
+    }
+  }
+
+  function updateStage(id: string, name: string) {
+    const stage = stages.find((s) => s.id === id);
+    if (stage) stage.name = name;
+  }
+
 
   function updateIngredient(id: string, updates: Partial<Ingredient>) {
     const index = ingredients.findIndex((i) => i.id === id);
@@ -130,6 +171,41 @@
 
   function removeIngredient(id: string) {
     ingredients = ingredients.filter((i) => i.id !== id);
+  }
+
+  function handleDnd(category: IngredientCategory, stageId: string | undefined, newBucketItems: Ingredient[]) {
+    // 1. Update items in this bucket to the correct category/stage
+    const updated = newBucketItems.map(item => ({
+      ...item,
+      category,
+      stageId
+    }));
+
+    // 2. IDs of items that WERE in this bucket or ARE NOW in this bucket
+    const currentBucketItems = ingredients.filter(ing => ing.category === category && ing.stageId === stageId);
+    const currentIds = new Set(currentBucketItems.map(i => i.id));
+    const newIds = new Set(updated.map(i => i.id));
+    const allAffectedIds = new Set([...currentIds, ...newIds]);
+
+    // 3. Find insertion index (where the bucket starts)
+    let insertionIndex = ingredients.findIndex(ing => currentIds.has(ing.id));
+    if (insertionIndex === -1) {
+      // If bucket was empty, put it at the end of its stage or at the end of the list
+      const stageItems = ingredients.filter(ing => ing.stageId === stageId);
+      if (stageItems.length > 0) {
+        const lastItem = stageItems[stageItems.length - 1];
+        insertionIndex = ingredients.indexOf(lastItem) + 1;
+      } else {
+        insertionIndex = ingredients.length;
+      }
+    }
+
+    // 4. Remove all affected items and splice in the updated ones
+    const remaining = ingredients.filter(ing => !allAffectedIds.has(ing.id));
+    const next = [...remaining];
+    next.splice(insertionIndex, 0, ...updated);
+
+    ingredients = next;
   }
 
   function scaleByYield(newPortions: number) {
@@ -200,6 +276,7 @@
       uuid,
       name: recipeName || "Untitled Recipe",
       ingredients: $state.snapshot(ingredients),
+      stages: $state.snapshot(stages),
       portions,
       notes,
       createdAt: existingRecipe?.createdAt || Date.now(),
@@ -216,7 +293,7 @@
     window.location.hash = `recipe/${uuid}`;
     await refreshVault();
     lastSavedJson = captureState();
-    if (!silent) alert("Recipe saved to vault!");
+    if (!silent) toast.success("Recipe saved to vault!");
   }
 
   function loadRecipe(recipe: Recipe) {
@@ -241,6 +318,7 @@
     notes = recipe.notes || "";
     recipeName = recipe.name;
     portions = recipe.portions || 1;
+    stages = recipe.stages || [];
     activeRecipeId = recipe.id ?? null;
     view = "calculator";
 
@@ -264,12 +342,14 @@
       if (activeRecipeId === id) {
         clearToDefaults();
       }
+      toast.success("Recipe deleted from vault");
     }
   }
 
   function handleRecipeUpdate(data: any) {
     if (data.recipeName) recipeName = data.recipeName;
     if (data.notes) notes = data.notes;
+    if (data.stages) stages = data.stages;
 
     if (data.ingredients) {
       ingredients = data.ingredients.map((ing: any) => ({
@@ -292,30 +372,35 @@
   }
 
   function clearToDefaults() {
+    stages = [{ id: "s1", name: "Main Dough" }];
     ingredients = [
       {
         id: "1",
         name: "Bread Flour",
         weight: 500,
         category: IngredientCategory.FLOUR,
+        stageId: "s1",
       },
       {
         id: "2",
         name: "Water",
         weight: 350,
         category: IngredientCategory.WATER,
+        stageId: "s1",
       },
       {
         id: "3",
         name: "Sourdough Starter",
         weight: 100,
         category: IngredientCategory.LEAVENING,
+        stageId: "s1",
       },
       {
         id: "4",
         name: "Salt",
         weight: 10,
         category: IngredientCategory.SALT,
+        stageId: "s1",
       },
     ];
     recipeName = "My Sourdough Recipe";
@@ -361,7 +446,7 @@
     [IngredientCategory.WATER]: Droplets,
     [IngredientCategory.MILK]: GlassWater,
     [IngredientCategory.LEAVENING]: Dna,
-    [IngredientCategory.SALT]: FlaskConical,
+    [IngredientCategory.SALT]: Stone,
     [IngredientCategory.SUGAR]: Gem,
     [IngredientCategory.FAT]: Zap,
     [IngredientCategory.TANGZHONG]: Flame,
@@ -380,10 +465,10 @@
     <div class="flex justify-between items-center mx-auto px-3 sm:px-6 max-w-6xl h-14 sm:h-16">
       <div class="flex items-center gap-2 sm:gap-3">
         <div class="bg-amber-600 shadow-amber-200 shadow-lg p-2 sm:p-2.5 rounded-xl">
-          <CalcIcon class="w-4 sm:w-5 h-4 sm:h-5 text-white" />
+          <Croissant class="w-4 sm:w-5 h-4 sm:h-5 text-white" />
         </div>
         <h1 class="font-extrabold text-slate-800 text-lg sm:text-xl tracking-tight">
-          Baker's<span class="hidden sm:inline text-amber-600">Assistant</span>
+          Baker's<span class="text-amber-600">Assistant</span>
         </h1>
       </div>
 
@@ -433,55 +518,174 @@
     </div>
   </header>
 
-  <main class="mx-auto px-4 py-4 sm:py-8 max-w-6xl">
+  <main class="mx-auto px-0 sm:px-2 sm:py-8 pb-2 max-w-6xl">
     {#if view === "calculator"}
       <div class="gap-6 sm:gap-8 grid grid-cols-1 lg:grid-cols-12">
         <!-- Left: Inputs -->
         <div class="space-y-6 lg:col-span-8" in:fade>
           <div
-            class="bg-white shadow-slate-200/50 shadow-xl p-5 sm:p-8 border border-slate-100 rounded-3xl sm:rounded-[2rem]"
+            class="bg-white shadow-slate-200/50 shadow-xl sm:p-8 px-2 py-4 border border-slate-100 rounded-0 sm:rounded-4xl"
           >
             <div
               class="flex md:flex-row flex-col justify-between md:items-center gap-4 sm:gap-6 mb-8 sm:mb-10 pb-6 border-slate-50 border-b"
             >
-              <input
-                type="text"
-                bind:value={recipeName}
-                class="bg-transparent p-0 border-none focus:ring-0 w-full font-black text-slate-900 placeholder:text-slate-200 text-2xl sm:text-3xl"
-                placeholder="Name your creation..."
-              />
-                              <label class="group/cook flex items-center gap-2 cursor-pointer">
-                    <span class="font-black text-[9px] text-slate-500 uppercase tracking-tighter">
-                      <ChefHat class="inline-block mr-0.5 w-3 h-3" />
-                      Cook
-                    </span>
-                    <div class="relative bg-slate-700 peer-checked:bg-emerald-500 rounded-full w-8 h-4 transition-colors">
-                      <input
-                        type="checkbox"
-                        bind:checked={isCookingMode}
-                        class="sr-only peer"
-                      />
-                      <div class="top-0.5 left-0.5 absolute bg-white shadow-sm rounded-full w-3 h-3 transition-transform peer-checked:translate-x-4"></div>
-                    </div>
-                  </label>
+              <Field.Field class="w-full">
+                <Input
+                  type="text"
+                  bind:value={recipeName}
+                  class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto font-black text-slate-900 sm:text-[40px] placeholder:text-slate-200 text-3xl"
+                  placeholder="Name your creation..."
+                />
+              </Field.Field>
+              <div class="flex items-center gap-3">
+                <Label for="cook-mode" class="group/cook flex items-center gap-2 cursor-pointer">
+                  <span class="font-black text-[9px] text-slate-500 uppercase tracking-tighter">
+                    <ChefHat class="inline-block mr-0.5 w-3 h-3" />
+                    Cook
+                  </span>
+                </Label>
+                <Switch id="cook-mode" bind:checked={isCookingMode} />
+              </div>
             </div>
 
-            <div class="space-y-10">
-              {#each Object.values(IngredientCategory) as cat}
-                <IngredientBucket
-                  category={cat}
-                  ingredients={ingredients.filter(
-                    (ing) => ing.category === cat,
-                  )}
-                  percentages={calculations.ingredientPercentages}
-                  icon={CATEGORY_ICONS[cat]}
-                  allIcons={CATEGORY_ICONS}
-                  isCookingMode={isCookingMode}
-                  onUpdate={updateIngredient}
-                  onRemove={removeIngredient}
-                  onAdd={() => addIngredient(cat)}
-                />
-              {/each}
+            <div class="space-y-12">
+              {#if stages.length === 0}
+                <div class="space-y-10">
+                  {#each Object.values(IngredientCategory) as cat}
+                    <IngredientBucket
+                      category={cat}
+                      ingredients={ingredients.filter(
+                        (ing) => ing.category === cat,
+                      )}
+                      percentages={calculations.ingredientPercentages}
+                      icon={CATEGORY_ICONS[cat]}
+                      allIcons={CATEGORY_ICONS}
+                      isCookingMode={isCookingMode}
+                      onUpdate={updateIngredient}
+                      onRemove={removeIngredient}
+                      onAdd={() => addIngredient(cat)}
+                      onDnd={(items) => handleDnd(cat, undefined, items)}
+                    />
+                  {/each}
+                </div>
+              {:else}
+                {#each stages as stage (stage.id)}
+                  <div
+                    class="bg-white/50 shadow-sm p-6 sm:p-8 border border-slate-100 rounded-3xl"
+                    transition:slide
+                  >
+                    <div class="flex justify-between items-center mb-8">
+                      <div class="flex items-center gap-3">
+                        <div class="bg-slate-100 p-2 rounded-xl">
+                          <Puzzle class="w-4 h-4 text-slate-500" />
+                        </div>
+                        <Field.Field>
+                          <Input
+                            type="text"
+                            bind:value={stage.name}
+                            class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto font-black text-slate-800 text-lg uppercase tracking-widest"
+                            placeholder="Stage Name"
+                          />
+                        </Field.Field>
+                      </div>
+                      <button
+                        onclick={() => removeStage(stage.id)}
+                        disabled={isCookingMode}
+                        class="hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 class="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div class="space-y-6">
+                      {#each Object.values(IngredientCategory) as cat}
+                        {@const stageIngs = ingredients.filter(
+                          (ing) => ing.category === cat && ing.stageId === stage.id,
+                        )}
+                        {#if stageIngs.length > 0}
+                          <IngredientBucket
+                            category={cat}
+                            ingredients={stageIngs}
+                            percentages={calculations.ingredientPercentages}
+                            icon={CATEGORY_ICONS[cat]}
+                            allIcons={CATEGORY_ICONS}
+                            isCookingMode={isCookingMode}
+                            onUpdate={updateIngredient}
+                            onRemove={removeIngredient}
+                            onAdd={() => addIngredient(cat, stage.id)}
+                            onDnd={(items) => handleDnd(cat, stage.id, items)}
+                          />
+                        {/if}
+                      {/each}
+
+                      {#if !isCookingMode}
+                        <div class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t">
+                          {#each Object.entries(CATEGORY_META) as [cat, meta]}
+                            <button
+                              onclick={() => addIngredient(cat as IngredientCategory, stage.id)}
+                              class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
+                            >
+                              <Plus class="w-3 h-3" />
+                              {meta.label}
+                            </button>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+
+                <!-- Ungrouped ingredients if any -->
+                {@const ungrouped = ingredients.filter((ing) => !ing.stageId)}
+                {#if ungrouped.length > 0}
+                  <div class="bg-slate-50/50 p-6 sm:p-8 border border-slate-200 border-dashed rounded-3xl">
+                    <h3 class="mb-6 font-black text-slate-400 text-xs uppercase tracking-[0.2em]">General Ingredients</h3>
+                    <div class="space-y-10">
+                      {#each Object.values(IngredientCategory) as cat}
+                        {@const catIngs = ungrouped.filter((ing) => ing.category === cat)}
+                        {#if catIngs.length > 0}
+                          <IngredientBucket
+                            category={cat}
+                            ingredients={catIngs}
+                            percentages={calculations.ingredientPercentages}
+                            icon={CATEGORY_ICONS[cat]}
+                            allIcons={CATEGORY_ICONS}
+                            isCookingMode={isCookingMode}
+                            onUpdate={updateIngredient}
+                            onRemove={removeIngredient}
+                            onAdd={() => addIngredient(cat)}
+                            onDnd={(items) => handleDnd(cat, undefined, items)}
+                          />
+                        {/if}
+                      {/each}
+
+                      {#if !isCookingMode}
+                        <div class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t">
+                          {#each Object.entries(CATEGORY_META) as [cat, meta]}
+                            <button
+                              onclick={() => addIngredient(cat as IngredientCategory)}
+                              class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
+                            >
+                              <Plus class="w-3 h-3" />
+                              {meta.label}
+                            </button>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
+              {/if}
+
+              {#if !isCookingMode}
+                <button
+                  onclick={addStage}
+                  class="flex justify-center items-center gap-2 hover:bg-slate-100 hover:shadow-sm py-4 border-2 border-slate-200 border-dashed rounded-3xl w-full font-bold text-slate-400 hover:text-slate-600 transition-all"
+                >
+                  <Plus class="w-5 h-5" />
+                  Add Recipe Stage (e.g. Levain, Main Dough, Toppings)
+                </button>
+              {/if}
             </div>
 
             <NotesEditor bind:notes />
@@ -498,12 +702,8 @@
         <div class="lg:col-span-4" in:fly={{ y: 20 }}>
           <div class="top-24 sticky space-y-6">
             <div
-              class="group relative bg-slate-900 shadow-2xl p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] overflow-hidden text-white"
+              class="group relative bg-slate-900 shadow-2xl p-6 sm:p-8 rounded-0 sm:rounded-4xl overflow-hidden text-white"
             >
-              <!-- Decorative element -->
-              <div
-                class="-top-4 -right-4 absolute bg-amber-500/10 blur-2xl rounded-full w-24 h-24 group-hover:scale-150 transition-all"
-              ></div>
 
               <div class="flex justify-between items-center mb-6">
                 <h3
@@ -512,17 +712,8 @@
                   Real-time Analysis
                 </h3>
                 <div class="flex items-center gap-3">
-                  <label class="group/scale flex items-center gap-2 cursor-pointer">
-                    <span class="font-black text-[9px] text-slate-500 uppercase tracking-tighter">Scale Mode</span>
-                    <div class="relative bg-slate-700 peer-checked:bg-amber-500 rounded-full w-8 h-4 transition-colors">
-                      <input
-                        type="checkbox"
-                        bind:checked={isScalingEnabled}
-                        class="sr-only peer"
-                      />
-                      <div class="top-0.5 left-0.5 absolute bg-white shadow-sm rounded-full w-3 h-3 transition-transform peer-checked:translate-x-4"></div>
-                    </div>
-                  </label>
+                  <Label for="scale-mode" class="font-black text-[9px] text-slate-500 uppercase tracking-tighter cursor-pointer">Scale Mode</Label>
+                  <Switch id="scale-mode" bind:checked={isScalingEnabled} />
                 </div>
               </div>
 
@@ -540,7 +731,7 @@
                     class="bg-slate-800 p-0.5 rounded-full w-full h-3 overflow-hidden"
                   >
                     <div
-                      class="bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] rounded-full h-full transition-all duration-1000 ease-out"
+                      class="bg-linear-to-r from-amber-500 to-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] rounded-full h-full transition-all duration-1000 ease-out"
                       style="width: {Math.min(calculations.hydration, 100)}%"
                     ></div>
                   </div>
@@ -569,44 +760,44 @@
                   </div>
                   <div class="col-span-2 pt-4 border-slate-800 border-t">
                     <div class="gap-3 sm:gap-4 grid grid-cols-2">
-                      <div class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''}">
-                        <span class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Yield</span>
-                        <input
+                      <Field.Field class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''} gap-0">
+                        <Field.Label class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Yield</Field.Label>
+                        <Input
                           type="number"
                           value={portions}
                           onchange={(e) => scaleByYield(Number(e.currentTarget.value))}
-                          class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-amber-500' : 'text-slate-200'} text-lg sm:text-xl"
+                          class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-amber-500' : 'text-slate-200'} text-lg sm:text-xl shadow-none h-auto"
                           min="1"
                         />
-                      </div>
-                      <div class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''}">
-                        <span class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Weight / Por.</span>
+                      </Field.Field>
+                      <Field.Field class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''} gap-0">
+                        <Field.Label class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Weight / Por.</Field.Label>
                         <div class="flex items-baseline gap-1">
-                          <input
+                          <Input
                             type="number"
                             value={Math.round(calculations.weightPerPortion)}
                             onchange={(e) => scaleToTargetServingWeight(Number(e.currentTarget.value))}
                             readonly={!isScalingEnabled}
-                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-slate-200' : 'text-slate-500'} text-lg sm:text-xl"
+                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-slate-200' : 'text-slate-500'} text-lg sm:text-xl shadow-none h-auto"
                             min="1"
                           />
                           <span class="font-bold text-slate-500 text-xs">g</span>
                         </div>
-                      </div>
-                      <div class="col-span-2 bg-amber-600/20 p-3 border {isScalingEnabled ? 'border-amber-600' : 'border-amber-600/30'} rounded-2xl transition-colors">
-                        <span class="block mb-1 font-black text-[10px] {isScalingEnabled ? 'text-amber-400' : 'text-amber-500/80'} uppercase tracking-widest">Final Batch Weight</span>
+                      </Field.Field>
+                      <Field.Field class="col-span-2 bg-amber-600/20 p-3 border {isScalingEnabled ? 'border-amber-600' : 'border-amber-600/30'} rounded-2xl transition-colors gap-0">
+                        <Field.Label class="block mb-1 font-black text-[10px] {isScalingEnabled ? 'text-amber-400' : 'text-amber-500/80'} uppercase tracking-widest">Final Batch Weight</Field.Label>
                         <div class="flex items-baseline gap-1">
-                          <input
+                          <Input
                             type="number"
                             value={Math.round(calculations.totalWeight)}
                             onchange={(e) => scaleToTotalWeight(Number(e.currentTarget.value))}
                             readonly={!isScalingEnabled}
-                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-black {isScalingEnabled ? 'text-amber-100' : 'text-amber-100/40'} text-2xl sm:text-3xl"
+                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-black {isScalingEnabled ? 'text-amber-100' : 'text-amber-100/40'} text-2xl sm:text-3xl shadow-none h-auto"
                             min="1"
                           />
                           <span class="ml-auto font-black text-amber-500 text-lg">g</span>
                         </div>
-                      </div>
+                      </Field.Field>
                     </div>
                   </div>
                 </div>
@@ -617,6 +808,7 @@
             <AIChat
               {recipeName}
               {ingredients}
+              {stages}
               hydration={calculations.hydration}
               {portions}
               {notes}
@@ -627,90 +819,13 @@
       </div>
     {:else}
       <!-- Vault View -->
-      <div class="mx-auto py-12 max-w-4xl" in:fade>
-        <div class="flex justify-between items-center mb-12">
-          <div>
-            <h2 class="mb-2 font-black text-slate-900 text-4xl">
-              The Recipe Vault
-            </h2>
-            <p class="font-medium text-slate-500">
-              Your personal collection of artisanal formulas.
-            </p>
-          </div>
-          <button
-            onclick={startNewRecipe}
-            class="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 px-6 py-3 rounded-2xl font-bold text-amber-700 transition"
-          >
-            <span>Start New Recipe</span>
-            <Plus class="w-4 h-4" />
-          </button>
-        </div>
-
-        {#if savedRecipes.length === 0}
-          <div
-            class="bg-white shadow-inner p-24 border-2 border-slate-200 border-dashed rounded-[3rem] text-center"
-          >
-            <BookOpen class="mx-auto mb-6 w-16 h-16 text-slate-200" />
-            <p class="font-bold text-slate-400 text-lg">
-              Your vault is currently empty.
-            </p>
-          </div>
-        {:else}
-          <div class="gap-4 sm:gap-6 grid">
-            {#each savedRecipes as recipe (recipe.id)}
-              <div
-                class="group bg-white shadow-sm hover:shadow-xl p-4 sm:p-6 border border-slate-100 rounded-2xl sm:rounded-3xl transition-all hover:-translate-y-1"
-                in:slide={{ axis: "y" }}
-              >
-                <div
-                  class="flex md:flex-row flex-col justify-between md:items-center gap-4 sm:gap-6"
-                >
-                  <div class="flex-1">
-                    <h4
-                      class="font-black text-slate-900 group-hover:text-amber-600 text-lg sm:text-xl transition-colors"
-                    >
-                      {recipe.name}
-                    </h4>
-                    <div class="flex items-center gap-4 mt-2">
-                      <span
-                        class="bg-slate-100 px-3 py-1 rounded-full font-black text-[10px] text-slate-500 uppercase tracking-widest"
-                      >
-                        {new Date(recipe.updatedAt).toLocaleDateString()}
-                      </span>
-                      <span class="text-slate-300">•</span>
-                      <span class="font-bold text-slate-500 text-xs"
-                        >{recipe.ingredients.length} Ingredients</span
-                      >
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <button
-                      onclick={() => loadRecipe(recipe)}
-                      class="flex flex-1 sm:flex-none justify-center items-center gap-2 bg-slate-50 hover:bg-slate-900 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-black text-[10px] text-slate-600 hover:text-white sm:text-xs uppercase tracking-widest transition-all"
-                    >
-                      <PenLine class="w-3.5 h-3.5" />
-                      <span>Open</span>
-                    </button>
-                    <button
-                      onclick={() => remixRecipe(recipe)}
-                      class="flex flex-1 sm:flex-none justify-center items-center gap-2 bg-slate-50 hover:bg-amber-600 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-black text-[10px] text-slate-600 hover:text-white sm:text-xs uppercase tracking-widest transition-all"
-                    >
-                      <Copy class="w-3.5 h-3.5" />
-                      <span>Remix</span>
-                    </button>
-                    <button
-                      onclick={() => recipe.id && deleteRecipe(recipe.id)}
-                      class="p-2 text-slate-200 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 class="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
+      <RecipeVault
+        {savedRecipes}
+        onLoadRecipe={loadRecipe}
+        onRemixRecipe={remixRecipe}
+        onDeleteRecipe={deleteRecipe}
+        onStartNewRecipe={startNewRecipe}
+      />
     {/if}
   </main>
 </div>

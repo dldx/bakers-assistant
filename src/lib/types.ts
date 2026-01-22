@@ -16,6 +16,7 @@ export interface Ingredient {
   name: string;
   weight: number;
   category: IngredientCategory;
+  stageId?: string;
   // Advanced configuration
   hydration?: number;       // For Leavening (default 100 for sourdough, 0 for yeast)
   tangzhongRatio?: number;  // For Tangzhong (default 5 for 1:5)
@@ -24,12 +25,18 @@ export interface Ingredient {
   checked?: boolean;        // For cooking mode
 }
 
+export interface RecipeStage {
+  id: string;
+  name: string;
+}
+
 export interface Recipe {
   id?: number;
   uuid: string;
   name: string;
   ingredients: Ingredient[];
   portions: number;
+  stages?: RecipeStage[];
 
   createdAt: number;
   updatedAt: number;

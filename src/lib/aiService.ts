@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { IngredientCategory, type Ingredient } from "./types";
+import { IngredientCategory, type Ingredient, type RecipeStage } from "./types";
 
 function getAI() {
   if (typeof localStorage === 'undefined') return new GoogleGenAI({ apiKey: '' });
@@ -12,9 +12,11 @@ function getAI() {
 }
 
 export interface BakerResponse {
+    advice?: string;
     recipeUpdate: {
         recipeName: string;
         ingredients: Ingredient[];
+        stages: RecipeStage[];
         portions: number;
         targetHydration?: number;
         notes: string;
@@ -25,6 +27,10 @@ const responseSchema = {
   type: Type.OBJECT,
     description: "Baking Assistant Response",
     properties: {
+        advice: {
+            type: Type.STRING,
+            description: "A friendly, encouraging response to the user. Max 3 sentences."
+        },
     recipeUpdate: {
       type: Type.OBJECT,
           nullable: true,
@@ -45,11 +51,24 @@ const responseSchema = {
                 category: {
                     type: Type.STRING,
                     enum: Object.values(IngredientCategory)
-                }
+                },
+                stageId: { type: Type.STRING, description: "ID of the stage this ingredient belongs to." }
             },
             required: ["name", "weight", "category"]
           }
         },
+          stages: {
+              type: Type.ARRAY,
+              description: "Logical groups like 'Levain' or 'Main Dough'.",
+              items: {
+                  type: Type.OBJECT,
+                  properties: {
+                      id: { type: Type.STRING },
+                      name: { type: Type.STRING }
+                  },
+                  required: ["id", "name"]
+              }
+          },
           portions: {
               type: Type.NUMBER,
               description: "The number of loaves/batches."
@@ -63,7 +82,7 @@ const responseSchema = {
               description: "Complete instructions and notes in Markdown."
           }
           },
-          required: ["recipeName", "ingredients", "portions", "notes"]
+        required: ["recipeName", "ingredients", "stages", "portions", "notes"]
     }
   },
     required: ["recipeUpdate"]
@@ -74,6 +93,7 @@ export async function getBakerAssistantResponse(
   context: {
     recipeName: string;
     ingredients: Ingredient[];
+      stages: RecipeStage[];
     hydration: number;
       portions: number;
       notes: string;
@@ -85,20 +105,27 @@ export async function getBakerAssistantResponse(
     You help bakers update and refine their recipes.
 
     RESPONSE FORMAT:
+    - 'advice': A friendly, concise message (max 3 sentences).
     - 'recipeUpdate': Always return the COMPLETE recipe state as an OBJECT.
-    - You must include 'recipeName', 'ingredients', 'portions', and 'notes' every time you return a 'recipeUpdate'.
+    - You must include 'recipeName', 'ingredients', 'stages', 'portions', and 'notes' every time you return a 'recipeUpdate'.
+
+    STAGES & STRUCTURE:
+    - Many recipes have multiple stages (e.g., 'Levain', 'Autolyse', 'Main Dough').
+    - Each stage must have a unique 'id' and a 'name'.
+    - Each ingredient should have a 'stageId' that matches one of the stage IDs.
 
     CURRENT CONTEXT:
     - Recipe: ${context.recipeName}
     - Hydration: ${context.hydration.toFixed(1)}%
     - Yield: ${context.portions} portion(s)
+    - Stages: ${JSON.stringify(context.stages)}
     - Ingredients: ${JSON.stringify(context.ingredients)}
     - Existing Notes: ${context.notes}
 
     CORE TASKS:
-    1. Parsing: For new recipes, extract all details.
-    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients.
-    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2} and return the FULL recipe with current context ingredients. The system will handle the math.
+    1. Parsing: For new recipes, extract all details and group them into logical stages.
+    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients and stages.
+    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2} and return the FULL recipe with current context. The system will handle the math.
     4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78 and return the FULL recipe state. The system will handle the math.
 
     STRICT CONSTRAINTS:
@@ -108,24 +135,25 @@ export async function getBakerAssistantResponse(
     - Be concise, artisanal, and encouraging.
 
     EXAMPLES:
-    User: "Double this recipe please."
+    User: "Convert this to a 2-stage recipe with a levain."
     Response: {
+      "advice": "That's a great idea! Dividing the recipe into a levain stage will help you better manage your fermentation timing.",
       "recipeUpdate": {
         "recipeName": "${context.recipeName}",
-        "ingredients": ${JSON.stringify(context.ingredients)},
-        "portions": ${context.portions * 2},
-        "notes": "${context.notes.replace(/\n/g, '\\n')}"
-      }
-    }
-
-    User: "Change flour to Whole Wheat and make it 75% hydration."
-    Response: {
-      "recipeUpdate": {
-        "recipeName": "${context.recipeName}",
-        "ingredients": ${JSON.stringify(context.ingredients.map(i => i.category === 'flour' ? { ...i, name: 'Whole Wheat Flour' } : i))},
+        "stages": [
+          { "id": "levain", "name": "Levain" },
+          { "id": "main", "name": "Main Dough" }
+        ],
+        "ingredients": [
+          { "name": "Flour", "weight": 100, "category": "flour", "stageId": "levain" },
+          { "name": "Water", "weight": 100, "category": "water", "stageId": "levain" },
+          { "name": "Starter", "weight": 20, "category": "starter", "stageId": "levain" },
+          { "name": "Bread Flour", "weight": 400, "category": "flour", "stageId": "main" },
+          { "name": "Water", "weight": 250, "category": "water", "stageId": "main" },
+          { "name": "Salt", "weight": 10, "category": "salt", "stageId": "main" }
+        ],
         "portions": ${context.portions},
-        "targetHydration": 75,
-        "notes": "${context.notes.replace(/\n/g, '\\n')}"
+        "notes": "Grouping into stages for better organization..."
       }
     }`;
 

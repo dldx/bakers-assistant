@@ -2,6 +2,8 @@
     import { fade } from "svelte/transition";
     import { PenLine, BookOpen } from "lucide-svelte";
     import Markdown from "svelte-exmarkdown";
+    import * as Field from "$lib/components/ui/field";
+    import { Textarea } from "$lib/components/ui/textarea";
 
     let { notes = $bindable("") } = $props();
 
@@ -55,12 +57,14 @@
     <div class="relative">
         {#if isEditing}
             <div class="group relative w-full" in:fade={{ duration: 150 }}>
-                <textarea
-                    bind:this={textareaRef}
-                    bind:value={notes}
-                    placeholder="Record your process, folding times, or ambient temperature..."
-                    class="bg-white shadow-amber-900/5 shadow-xl p-4 sm:p-6 border-2 border-amber-500/20 focus:border-amber-500 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/10 w-full h-full min-h-[200px] sm:min-h-[300px] font-mono font-medium text-slate-700 placeholder:text-slate-300 text-sm sm:text-base transition-all resize-y"
-                ></textarea>
+                <Field.Field>
+                    <Textarea
+                        bind:ref={textareaRef}
+                        bind:value={notes}
+                        placeholder="Record your process, folding times, or ambient temperature..."
+                        class="bg-white shadow-amber-900/5 shadow-none shadow-xl p-4 sm:p-6 border-2 border-amber-500/20 focus:border-amber-500 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/10 w-full h-full min-h-[200px] sm:min-h-[300px] font-mono font-medium text-slate-700 placeholder:text-slate-300 text-sm sm:text-base transition-all resize-y"
+                    />
+                </Field.Field>
                 <div
                     class="right-4 bottom-4 absolute bg-slate-50 px-2 py-1 border border-slate-100 rounded-lg font-black text-[10px] text-slate-400 uppercase tracking-widest pointer-events-none"
                 >
@@ -75,7 +79,7 @@
         {:else}
             <!-- Rendered View -->
             <div
-                class="group relative bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:border-amber-200 rounded-2xl min-h-[140px] sm:min-h-[200px] transition-colors cursor-text"
+                class="group relative bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:border-amber-200 rounded-2xl min-h-[140px] sm:min-h-[200px] text-black transition-colors cursor-text"
                 onclick={startEditing}
                 onkeydown={(e) => e.key === "Enter" && startEditing()}
                 role="button"
