@@ -32,6 +32,7 @@
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
   import { SyncService } from "$lib/syncService";
+  import { exportVault, importVault } from "$lib/vaultService";
 
   // --- State Runes ---
   let ingredients = $state<Ingredient[]>([
@@ -365,6 +366,28 @@
         clearToDefaults();
       }
       toast.success("Recipe deleted from vault");
+    }
+  }
+
+  async function handleExportVault() {
+    try {
+      await exportVault();
+      toast.success("Vault exported successfully");
+    } catch (err) {
+      toast.error("Failed to export vault");
+    }
+  }
+
+  async function handleImportVault(file: File) {
+    const result = await importVault(file);
+    if (result.success) {
+      await refreshVault();
+      if (syncService) {
+        await syncService.syncAll();
+      }
+      toast.success(`Imported ${result.count} recipes`);
+    } else {
+      toast.error(`Import failed: ${result.error}`);
     }
   }
 
@@ -860,6 +883,8 @@
         onDeleteRecipe={deleteRecipe}
         onStartNewRecipe={startNewRecipe}
         onUpdateSyncKey={updateSyncKey}
+        onExportVault={handleExportVault}
+        onImportVault={handleImportVault}
       />
     {/if}
   </main>

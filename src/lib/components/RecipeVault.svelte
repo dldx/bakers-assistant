@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, slide } from "svelte/transition";
-  import { Plus, PenLine, Copy, Trash2, BookOpen } from "lucide-svelte";
+  import { Plus, PenLine, Copy, Trash2, BookOpen, Download, Upload, Dices } from "lucide-svelte";
   import type { Recipe } from "$lib/types";
   import { calculateRecipeStats } from "$lib/calculations";
   import { GlassWater, Zap, Save } from "lucide-svelte";
@@ -13,6 +13,8 @@
     onDeleteRecipe,
     onStartNewRecipe,
     onUpdateSyncKey,
+    onExportVault,
+    onImportVault,
   } = $props<{
     savedRecipes: Recipe[];
     syncKey: string;
@@ -21,18 +23,30 @@
     onDeleteRecipe: (id: number) => void;
     onStartNewRecipe: () => void;
     onUpdateSyncKey: (key: string) => void;
+    onExportVault: () => void;
+    onImportVault: (file: File) => void;
   }>();
 
   let tempSyncKey = $state("");
+  let fileInput: HTMLInputElement;
 
   $effect(() => {
     tempSyncKey = syncKey;
   });
+
+  function generateKey() {
+    const chars = "abcdefghijklmnopqrstuvwxyz1234567890";
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    tempSyncKey = result;
+  }
 </script>
 
 <div class="mx-auto py-12 max-w-4xl" in:fade>
-  <div class="flex justify-between items-center gap-2 mb-12 p-2">
-    <div>
+  <div class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-12 p-2">
+    <div class="flex-1">
       <h2 class="mb-2 font-black text-slate-900 text-2xl sm:text-4xl">
         The Recipe Vault
       </h2>
@@ -40,29 +54,69 @@
         Your personal collection of artisanal formulas.
       </p>
     </div>
-    <div class="flex items-center gap-4">
+    <div class="flex flex-wrap items-center gap-3 sm:gap-4">
       <div class="group relative">
         <input
           type="text"
           placeholder="Sync Key (e.g. secret123)"
           bind:value={tempSyncKey}
           onkeydown={(e) => e.key === "Enter" && onUpdateSyncKey(tempSyncKey)}
-          class="bg-slate-100 hover:bg-slate-200 focus:bg-white px-4 py-3 rounded-2xl outline-hidden focus:ring-2 focus:ring-sky-500 w-48 sm:w-64 font-bold placeholder:font-bold text-slate-700 text-sm transition-all"
+          class="bg-slate-100 hover:bg-slate-200 focus:bg-white px-4 py-3 rounded-2xl outline-hidden focus:ring-2 focus:ring-sky-500 w-full sm:w-64 font-bold placeholder:font-bold text-slate-700 text-sm transition-all"
         />
         {#if tempSyncKey !== syncKey}
           <button
             onclick={() => onUpdateSyncKey(tempSyncKey)}
+            title="Save changes"
             class="top-1/2 right-2 absolute bg-sky-500 hover:bg-sky-600 p-1.5 rounded-lg text-white transition-colors -translate-y-1/2"
           >
             <Save class="w-3.5 h-3.5" />
           </button>
+        {:else}
+          <button
+            onclick={generateKey}
+            title="Generate random key"
+            class="top-1/2 right-2 absolute bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg text-slate-500 transition-colors -translate-y-1/2"
+          >
+            <Dices class="w-3.5 h-3.5" />
+          </button>
         {/if}
       </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          onclick={onExportVault}
+          title="Backup Vault"
+          class="bg-slate-100 hover:bg-slate-200 p-3 rounded-2xl text-slate-600 transition"
+        >
+          <Download class="w-5 h-5" />
+        </button>
+        <button
+          onclick={() => fileInput.click()}
+          title="Restore Vault"
+          class="bg-slate-100 hover:bg-slate-200 p-3 rounded-2xl text-slate-600 transition"
+        >
+          <Upload class="w-5 h-5" />
+        </button>
+        <input
+          bind:this={fileInput}
+          type="file"
+          accept=".json"
+          class="hidden"
+          onchange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            if (file) {
+              onImportVault(file);
+              e.currentTarget.value = ""; // Reset for next time
+            }
+          }}
+        />
+      </div>
+
       <button
         onclick={onStartNewRecipe}
-        class="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 px-6 py-3 rounded-2xl font-bold text-amber-700 transition"
+        class="flex flex-1 sm:flex-none justify-center items-center gap-2 bg-amber-100 hover:bg-amber-200 px-6 py-3 rounded-2xl font-bold text-amber-700 transition"
       >
-        <span>Start New Recipe</span>
+        <span>New Recipe</span>
         <Plus class="w-4 h-4" />
       </button>
     </div>

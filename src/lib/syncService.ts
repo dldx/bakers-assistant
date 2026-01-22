@@ -84,4 +84,10 @@ export class SyncService {
   public sendDelete(uuid: string) {
     this.socket?.send(JSON.stringify({ type: "delete-recipe", uuid }));
   }
+
+  public async syncAll() {
+    if (!this.socket) return;
+    const recipes = await db.recipes.toArray();
+    this.socket.send(JSON.stringify({ type: "sync-vault", recipes }));
+  }
 }
