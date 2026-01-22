@@ -394,11 +394,18 @@
   function updateSyncKey(key: string) {
     syncKey = key;
     localStorage.setItem("syncKey", key);
+
+    if (syncService) {
+      syncService.close();
+    }
+
     if (key) {
       syncService = new SyncService(key, refreshVault);
       refreshVault();
+      toast.info("Sync key updated. Connecting to vault...");
     } else {
       syncService = null;
+      toast.success("Sync disabled");
     }
   }
 

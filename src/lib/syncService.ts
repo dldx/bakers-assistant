@@ -90,4 +90,8 @@ export class SyncService {
     const recipes = await db.recipes.toArray();
     this.socket.send(JSON.stringify({ type: "sync-vault", recipes }));
   }
+
+  public close() {
+    this.socket?.close();
+  }
 }
