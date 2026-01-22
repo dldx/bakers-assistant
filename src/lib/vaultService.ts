@@ -1,5 +1,6 @@
 import { db } from './db';
 import type { Recipe } from './types';
+import type { SyncService } from './syncService';
 
 export async function exportVault() {
   const recipes = await db.recipes.toArray();
@@ -18,7 +19,10 @@ export async function exportVault() {
   URL.revokeObjectURL(url);
 }
 
-export async function importVault(file: File): Promise<{ success: boolean; count: number; error?: string }> {
+export async function importVault(
+  file: File,
+  syncService?: SyncService
+): Promise<{ success: boolean; count: number; error?: string }> {
   try {
     const text = await file.text();
     const recipes: Recipe[] = JSON.parse(text);
@@ -45,15 +49,19 @@ export async function importVault(file: File): Promise<{ success: boolean; count
         // preserve local ID if it exists to avoid duplicates in the same DB
         const recipeToSave = { ...recipe, updatedAt: importedUpdatedAt };
         if (local?.id) {
-            recipeToSave.id = local.id;
+          recipeToSave.id = local.id;
         } else {
-            // Ensure we don't use an ID from another installation that might conflict
-            delete recipeToSave.id;
+          // Ensure we don't use an ID from another installation that might conflict
+          delete recipeToSave.id;
         }
 
         await db.recipes.put(recipeToSave);
         count++;
       }
+    }
+
+    if (count > 0 && syncService) {
+      await syncService.syncAll();
     }
 
     return { success: true, count };

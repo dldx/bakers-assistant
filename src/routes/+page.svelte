@@ -379,12 +379,9 @@
   }
 
   async function handleImportVault(file: File) {
-    const result = await importVault(file);
+    const result = await importVault(file, syncService ?? undefined);
     if (result.success) {
       await refreshVault();
-      if (syncService) {
-        await syncService.syncAll();
-      }
       toast.success(`Imported ${result.count} recipes`);
     } else {
       toast.error(`Import failed: ${result.error}`);
@@ -530,7 +527,7 @@
         <div class="bg-amber-600 shadow-amber-200 shadow-lg p-2 sm:p-2.5 rounded-xl">
           <Croissant class="w-4 sm:w-5 h-4 sm:h-5 text-white" />
         </div>
-        <h1 class="font-extrabold text-slate-800 text-lg sm:text-xl tracking-tight">
+        <h1 class="flex sm:flex-row flex-col font-extrabold text-slate-800 text-lg sm:text-xl leading-4 tracking-tight">
           Baker's<span class="text-amber-600">Assistant</span>
         </h1>
       </div>
@@ -556,7 +553,7 @@
         >
           <span class="hidden xs:inline">The Vault</span>
           <span class="xs:hidden">Vault</span>
-          <span class="opacity-50 ml-1">({savedRecipes.length})</span>
+          <span class="hidden sm:inline opacity-50 ml-1">({savedRecipes.length})</span>
         </button>
       </nav>
 
