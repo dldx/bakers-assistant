@@ -97,7 +97,7 @@
     </div>
   {/if}
 
-  <Field.Field class="min-w-[120px] grow">
+  <Field.Field class="min-w-30 grow">
     <Input
       type="text"
       placeholder={meta.placeholder}
@@ -105,10 +105,11 @@
       disabled={isCookingMode}
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
-      class="grow bg-slate-50/50 focus:bg-white h-10 px-3 border-slate-100 focus:border-amber-500 rounded-xl focus-visible:ring-amber-500 font-medium placeholder:text-slate-300 text-sm transition-all text-black {ing.checked &&
+      class="grow bg-slate-50/50 disabled:opacity-100  focus:bg-white h-10 px-3 border-slate-100 focus:border-amber-500 rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-sm transition-all text-black {ing.checked &&
       isCookingMode
-        ? 'line-through decoration-2 decoration-slate-400'
-        : ''}"
+        ? 'line-through decoration-2 decoration-slate-400 font-bold  border-0 bg-transparent shadow-none' :
+        isCookingMode ? ' font-bold border-0 bg-transparent shadow-none'
+        : 'font-medium'}"
       style="transition: text-decoration 0.3s ease;"
     />
   </Field.Field>
@@ -133,7 +134,7 @@
             onUpdate(ing.id, {
               proteinContent: Number(e.currentTarget.value),
             })}
-          class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
         />
         <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
       </div>
@@ -146,7 +147,7 @@
         >Hydration</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-9"
+        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
       >
         <Input
           id="hydration-{ing.id}"
@@ -158,7 +159,7 @@
             onUpdate(ing.id, {
               hydration: Number(e.currentTarget.value),
             })}
-          class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
         />
         <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
       </div>
@@ -171,7 +172,7 @@
         >Ratio 1:</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-9"
+        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
       >
         <Input
           id="ratio-{ing.id}"
@@ -183,7 +184,7 @@
             onUpdate(ing.id, {
               tangzhongRatio: Number(e.currentTarget.value),
             })}
-          class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
         />
       </div>
     </Field.Field>
@@ -195,7 +196,7 @@
         >Water</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-9"
+        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
       >
         <Input
           id="water-{ing.id}"
@@ -208,7 +209,7 @@
             onUpdate(ing.id, {
               waterContent: Number(e.currentTarget.value),
             })}
-          class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-8 h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-8 h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
         />
         <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
       </div>
@@ -220,7 +221,7 @@
     <div
       class="flex items-center rounded-xl transition-all {ing.checked &&
       isCookingMode
-        ? 'opacity-50'
+        ? 'opacity-100'
         : ''}"
       style="transition: opacity 0.3s ease;"
     >
@@ -233,7 +234,7 @@
           onUpdate(ing.id, {
             weight: Number((e.target as HTMLInputElement).value),
           })}
-        class="bg-transparent number-input-no-spin h-10 border-none w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
+        class="bg-transparent disabled:opacity-100 number-input-no-spin h-10 border-none w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
         isCookingMode
           ? 'line-through decoration-2 decoration-slate-400'
           : ''}"
@@ -241,7 +242,7 @@
         placeholder="0"
       />
       <span
-        class="ml-1 font-black text-[10px] text-slate-400 uppercase"
+        class="ml-1 font-black text-[10px] uppercase"
         >g</span
       >
     </div>
@@ -263,7 +264,7 @@
   <button
     onclick={() => onRemove(ing.id)}
     disabled={isCookingMode}
-    class="hover:bg-red-50 disabled:opacity-30 p-1.5 rounded-lg text-slate-200 hover:text-red-500 transition-colors disabled:cursor-not-allowed"
+    class="disabled:hidden hover:bg-red-50 p-1.5 rounded-lg text-slate-200 hover:text-red-500 transition-colors disabled:cursor-not-allowed"
   >
     <Trash2 class="w-4 h-4" />
   </button>

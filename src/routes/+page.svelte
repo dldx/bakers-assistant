@@ -651,7 +651,7 @@
                       <button
                         onclick={() => removeStage(stage.id)}
                         disabled={isCookingMode}
-                        class="hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
+                        class="disabled:hidden hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
                       >
                         <Trash2 class="w-5 h-5" />
                       </button>
