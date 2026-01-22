@@ -33,10 +33,10 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="mt-8 pt-8 border-t border-slate-100" bind:this={containerRef}>
-    <div class="flex items-center justify-between mb-4">
+<div class="mt-8 pt-8 border-slate-100 border-t" bind:this={containerRef}>
+    <div class="flex justify-between items-center mb-4">
         <h3
-            class="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"
+            class="flex items-center gap-2 font-black text-slate-800 text-sm uppercase tracking-widest"
         >
             <PenLine class="w-4 h-4 text-slate-400" />
             Baker's Notes
@@ -45,7 +45,7 @@
         {#if !isEditing}
             <button
                 onclick={startEditing}
-                class="text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors"
+                class="bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg font-bold text-amber-600 hover:text-amber-700 text-xs transition-colors"
             >
                 Edit Notes
             </button>
@@ -54,20 +54,20 @@
 
     <div class="relative">
         {#if isEditing}
-            <div class="w-full relative group" in:fade={{ duration: 150 }}>
+            <div class="group relative w-full" in:fade={{ duration: 150 }}>
                 <textarea
                     bind:this={textareaRef}
                     bind:value={notes}
                     placeholder="Record your process, folding times, or ambient temperature..."
-                    class="w-full h-full min-h-[300px] p-6 bg-white rounded-2xl border-2 border-amber-500/20 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 resize-y text-base text-slate-700 font-medium placeholder:text-slate-300 transition-all font-mono shadow-xl shadow-amber-900/5 outline-none"
+                    class="bg-white shadow-amber-900/5 shadow-xl p-4 sm:p-6 border-2 border-amber-500/20 focus:border-amber-500 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/10 w-full h-full min-h-[200px] sm:min-h-[300px] font-mono font-medium text-slate-700 placeholder:text-slate-300 text-sm sm:text-base transition-all resize-y"
                 ></textarea>
                 <div
-                    class="absolute bottom-4 right-4 text-[10px] font-black text-slate-400 pointer-events-none uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"
+                    class="right-4 bottom-4 absolute bg-slate-50 px-2 py-1 border border-slate-100 rounded-lg font-black text-[10px] text-slate-400 uppercase tracking-widest pointer-events-none"
                 >
                     Markdown Supported
                 </div>
                 <div
-                    class="absolute -top-3 right-4 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200 shadow-sm pointer-events-none"
+                    class="-top-3 right-4 absolute bg-amber-100 shadow-sm px-2 py-0.5 border border-amber-200 rounded font-bold text-[10px] text-amber-800 pointer-events-none"
                 >
                     Editing
                 </div>
@@ -75,7 +75,7 @@
         {:else}
             <!-- Rendered View -->
             <div
-                class="bg-slate-50 rounded-2xl p-8 min-h-[200px] border border-slate-100 hover:border-amber-200 transition-colors cursor-text group relative"
+                class="group relative bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:border-amber-200 rounded-2xl min-h-[140px] sm:min-h-[200px] transition-colors cursor-text"
                 onclick={startEditing}
                 onkeydown={(e) => e.key === "Enter" && startEditing()}
                 role="button"
@@ -84,16 +84,16 @@
             >
                 {#if notes.trim()}
                     <div
-                        class="prose prose-sm prose-slate prose-headings:font-black prose-p:font-medium prose-p:text-slate-600 prose-ul:list-disc prose-ol:list-decimal max-w-none"
+                        class="max-w-none prose-p:font-medium prose-headings:font-black prose-p:text-slate-600 prose-ol:list-decimal prose-ul:list-disc prose prose-sm prose-slate"
                     >
                         <Markdown md={notes} />
                     </div>
                 {:else}
                     <div
-                        class="h-full min-h-[140px] flex flex-col items-center justify-center text-center text-slate-300 group-hover:text-amber-300 transition-colors"
+                        class="flex flex-col justify-center items-center h-full min-h-[140px] text-slate-300 group-hover:text-amber-300 text-center transition-colors"
                     >
-                        <BookOpen class="w-10 h-10 mb-3 opacity-50" />
-                        <p class="text-xs font-black uppercase tracking-widest">
+                        <BookOpen class="opacity-50 mb-3 w-10 h-10" />
+                        <p class="font-black text-xs uppercase tracking-widest">
                             No notes yet. Click to start writing.
                         </p>
                     </div>
@@ -101,7 +101,7 @@
 
                 <!-- Subtle 'Click to edit' hint on hover -->
                 <div
-                    class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-md shadow-sm border border-slate-100"
+                    class="right-4 bottom-4 absolute bg-white opacity-0 group-hover:opacity-100 shadow-sm px-2 py-1 border border-slate-100 rounded-md font-bold text-[10px] text-slate-400 transition-opacity"
                 >
                     Click to edit
                 </div>

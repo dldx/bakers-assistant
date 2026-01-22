@@ -12,43 +12,61 @@ function getAI() {
 }
 
 export interface BakerResponse {
-  advice: string;
-  recipeUpdate?: {
-    recipeName?: string;
-    ingredients?: Ingredient[];
-    notes?: string;
-  };
+    recipeUpdate: {
+        recipeName: string;
+        ingredients: Ingredient[];
+        portions: number;
+        targetHydration?: number;
+        notes: string;
+    } | null;
 }
 
-const bakerResponseSchema = {
+const responseSchema = {
   type: Type.OBJECT,
-  properties: {
-    advice: {
-      type: Type.STRING,
-      description: "The conversational response to the user. Use Markdown for formatting bullet points or emphasis. Always be professional and encouraging."
-    },
+    description: "Baking Assistant Response",
+    properties: {
     recipeUpdate: {
       type: Type.OBJECT,
-      description: "Optional structured recipe data if you are proposing changes or parsing a new recipe.",
+          nullable: true,
+          description: "Complete structured recipe data. Always return the full state when changes are proposed.",
       properties: {
-        recipeName: { type: Type.STRING },
+          recipeName: {
+              type: Type.STRING,
+              description: "A short, concise name for the recipe."
+          },
         ingredients: {
           type: Type.ARRAY,
+            description: "The complete list of ingredients.",
           items: {
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
               weight: { type: Type.NUMBER },
-              category: { type: Type.STRING, enum: Object.values(IngredientCategory) }
+                category: {
+                    type: Type.STRING,
+                    enum: Object.values(IngredientCategory)
+                }
             },
             required: ["name", "weight", "category"]
           }
         },
-        notes: { type: Type.STRING }
-      }
+          portions: {
+              type: Type.NUMBER,
+              description: "The number of loaves/batches."
+          },
+          targetHydration: {
+              type: Type.NUMBER,
+              description: "Optional: Only included if asking for a hydration change."
+          },
+          notes: {
+              type: Type.STRING,
+              description: "Complete instructions and notes in Markdown."
+          }
+          },
+          required: ["recipeName", "ingredients", "portions", "notes"]
     }
   },
-  required: ["advice"]
+    required: ["recipeUpdate"]
 };
 
 export async function getBakerAssistantResponse(
@@ -57,26 +75,59 @@ export async function getBakerAssistantResponse(
     recipeName: string;
     ingredients: Ingredient[];
     hydration: number;
+      portions: number;
+      notes: string;
   }
 ): Promise<BakerResponse> {
-  const model = "gemini-2.5-flash-lite";
+    const model = "gemini-3-flash-preview";
 
   const systemInstruction = `Expert Sourdough Baker Assistant.
-    You help with recipe analysis, troubleshooting, and parsing.
-    Current Recipe: ${context.recipeName}
-    Current Hydration: ${context.hydration.toFixed(1)}%
-    Current Ingredients: ${JSON.stringify(context.ingredients)}
+    You help bakers update and refine their recipes.
 
-    TASK:
-    1. Provide expert baking advice.
-    2. If the user requests any modification (hydration change, ingredient swap, scaling, etc.) or pastes a new recipe:
-       - You MUST populate the 'recipeUpdate' field with the FULL set of ingredients.
-       - Ensure all weights are numbers.
-       - Use only valid categories: ${Object.values(IngredientCategory).join(", ")}.
+    RESPONSE FORMAT:
+    - 'recipeUpdate': Always return the COMPLETE recipe state as an OBJECT.
+    - You must include 'recipeName', 'ingredients', 'portions', and 'notes' every time you return a 'recipeUpdate'.
 
-    If no recipe change is requested, omit 'recipeUpdate'.
+    CURRENT CONTEXT:
+    - Recipe: ${context.recipeName}
+    - Hydration: ${context.hydration.toFixed(1)}%
+    - Yield: ${context.portions} portion(s)
+    - Ingredients: ${JSON.stringify(context.ingredients)}
+    - Existing Notes: ${context.notes}
 
-    Be concise, artisanal, and encouraging.`;
+    CORE TASKS:
+    1. Parsing: For new recipes, extract all details.
+    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients.
+    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2} and return the FULL recipe with current context ingredients. The system will handle the math.
+    4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78 and return the FULL recipe state. The system will handle the math.
+
+    STRICT CONSTRAINTS:
+    - NEVER return a partial 'recipeUpdate'.
+    - DO NOT perform mathematical scaling or hydration calculations yourself.
+    - Valid categories: ${Object.values(IngredientCategory).join(", ")}.
+    - Be concise, artisanal, and encouraging.
+
+    EXAMPLES:
+    User: "Double this recipe please."
+    Response: {
+      "recipeUpdate": {
+        "recipeName": "${context.recipeName}",
+        "ingredients": ${JSON.stringify(context.ingredients)},
+        "portions": ${context.portions * 2},
+        "notes": "${context.notes.replace(/\n/g, '\\n')}"
+      }
+    }
+
+    User: "Change flour to Whole Wheat and make it 75% hydration."
+    Response: {
+      "recipeUpdate": {
+        "recipeName": "${context.recipeName}",
+        "ingredients": ${JSON.stringify(context.ingredients.map(i => i.category === 'flour' ? { ...i, name: 'Whole Wheat Flour' } : i))},
+        "portions": ${context.portions},
+        "targetHydration": 75,
+        "notes": "${context.notes.replace(/\n/g, '\\n')}"
+      }
+    }`;
 
   const contents = messages.map(m => ({
     role: m.role === "user" ? "user" : "model",
@@ -89,7 +140,7 @@ export async function getBakerAssistantResponse(
     config: {
       systemInstruction,
       responseMimeType: "application/json",
-      responseSchema: bakerResponseSchema as any,
+        responseSchema: responseSchema as any,
     },
   });
 
@@ -99,9 +150,10 @@ export async function getBakerAssistantResponse(
     throw new Error(`AI Error ${err.code}: ${err.message} (${err.status})`);
   }
 
-  if (!response.text) {
+    const text = (response as any).text;
+    if (!text) {
     throw new Error("Empty response from AI");
   }
 
-  return JSON.parse(response.text) as BakerResponse;
+    return JSON.parse(text) as BakerResponse;
 }

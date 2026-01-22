@@ -25,9 +25,10 @@ The application fully embraces **Svelte 5 Runes** for a more explicit and fine-g
 *   **`$state`**: Manages all mutable data sources.
     *   `ingredients`: An array of `Ingredient` objects. This is the single source of truth for the recipe.
     *   `recipeName`: Top-level recipe metadata.
+    *   `portions`: Number of servings/loaves (default 1).
     *   `view`: Controls the navigation state ('calculator' vs 'history').
 *   **`$derived`**: Handles all "computed" logic.
-    *   `calculations`: Uses the imported `calculateRecipeStats` helper function to derive `totalFlour`, `totalWater`, and `hydration` whenever `ingredients` changes.
+    *   `calculations`: Uses the imported `calculateRecipeStats` helper function to derive `totalFlour`, `totalWater`, `hydration`, and `weightPerPortion` whenever `ingredients` or `portions` changes.
 *   **`$state.snapshot`**: Used when saving recipes to `dexie` to ensure we store a plain POJO (Plain Old JavaScript Object) rather than a reactive proxy.
 
 ### Component Structure
@@ -49,6 +50,17 @@ Calculations are located in `src/lib/calculations.ts`. This is the brain of the 
     *   *Formula*: `flour = weight / (1 + ratio)`, `water = weight - flour`.
 *   **Tangzhong**: Split based on a ratio (default 1:5).
     *   *Formula*: `flour = weight * (1/6)`, `water = weight * (5/6)`.
+
+### Yield & Scaling Logic
+The application supports scaling recipes by portion count or by target serving size.
+*   **Scale by Yield**: Adjusts all ingredient weights proportionally when the number of portions changes.
+*   **Scale by Serving Size**: Recalculates all weights based on a desired weight for a single portion (e.g., "I want each of my 2 loaves to weigh 500g").
+
+### Yield & Scaling Logic
+The application supports scaling recipes by portion count, by target serving size, or by total batch weight.
+*   **Scale by Yield**: Adjusts all ingredient weights proportionally when the number of portions changes.
+*   **Scale by Serving Size**: Recalculates all weights based on a desired weight for a single portion (e.g., "I want each of my 2 loaves to weigh 500g").
+*   **Scale by Batch Weight**: Recalculates all weights based on a desired total weight for the entire dough batch.
 
 ### Ingredient Configuration
 Ingredients support "Ad-hoc Polymorphism" via optional fields in the `Ingredient` interface:
@@ -75,6 +87,5 @@ The app follows a "Premium Utility" aesthetic.
     *   **Sticky Analysis**: The "Real-time Analysis" card sticks to the viewport on desktop (`sticky top-24`) so users can see stats while adding ingredients.
 
 ## 6. Future Roadmap Ideas
-*   **Scaling**: A "Scale to Total Dough Weight" feature that adjusts all ingredients proportionally.
 *   **Unit Conversion**: Support for Ounces/Pounds.
 *   **Export**: Generate a sharable Image or PDF of the formula.

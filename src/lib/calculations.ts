@@ -1,6 +1,6 @@
 import { IngredientCategory, type Ingredient, type CalculationResult } from "./types";
 
-export function calculateRecipeStats(ingredients: Ingredient[]): CalculationResult {
+export function calculateRecipeStats(ingredients: Ingredient[], portions: number = 1): CalculationResult {
     let totalFlour = 0;
     let totalWater = 0;
     let totalWeight = 0;
@@ -26,13 +26,13 @@ export function calculateRecipeStats(ingredients: Ingredient[]): CalculationResu
             const waterPart = ing.weight * (ratioConfig / totalParts);
             totalFlour += flourPart;
             totalWater += waterPart;
-        } else if (ing.category === IngredientCategory.STARTER) {
+        } else if (ing.category === IngredientCategory.LEAVENING) {
             const hydrationConfig = ing.hydration ?? 100;
             const ratio = hydrationConfig / 100;
-            const flourInStarter = ing.weight / (1 + ratio);
-            const waterInStarter = ing.weight - flourInStarter;
-            totalFlour += flourInStarter;
-            totalWater += waterInStarter;
+            const flourInLeavening = ing.weight / (1 + ratio);
+            const waterInLeavening = ing.weight - flourInLeavening;
+            totalFlour += flourInLeavening;
+            totalWater += waterInLeavening;
         }
     });
 
@@ -47,6 +47,7 @@ export function calculateRecipeStats(ingredients: Ingredient[]): CalculationResu
         totalFlour,
         totalWater,
         hydration: totalFlour > 0 ? (totalWater / totalFlour) * 100 : 0,
+        weightPerPortion: portions > 0 ? totalWeight / portions : 0,
         ingredientPercentages,
     };
 }

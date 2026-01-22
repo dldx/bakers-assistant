@@ -2,7 +2,7 @@
 export enum IngredientCategory {
   FLOUR = 'flour',
   WATER = 'water',
-  STARTER = 'starter',
+  LEAVENING = 'starter',
   SALT = 'salt',
   MILK = 'milk',
   SUGAR = 'sugar',
@@ -17,10 +17,11 @@ export interface Ingredient {
   weight: number;
   category: IngredientCategory;
   // Advanced configuration
-  hydration?: number;       // For Starter (default 100)
+  hydration?: number;       // For Leavening (default 100 for sourdough, 0 for yeast)
   tangzhongRatio?: number;  // For Tangzhong (default 5 for 1:5)
   waterContent?: number;    // For Butter/Milk (default 16/87)
   proteinContent?: number;  // For Flour
+  checked?: boolean;        // For cooking mode
 }
 
 export interface Recipe {
@@ -28,6 +29,7 @@ export interface Recipe {
   uuid: string;
   name: string;
   ingredients: Ingredient[];
+  portions: number;
 
   createdAt: number;
   updatedAt: number;
@@ -39,5 +41,6 @@ export interface CalculationResult {
   totalFlour: number;
   totalWater: number;
   hydration: number;
+  weightPerPortion: number;
   ingredientPercentages: Record<string, number>;
 }

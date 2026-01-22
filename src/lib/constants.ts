@@ -14,11 +14,11 @@ export const CATEGORY_META = {
     iconColor: 'text-blue-600',
     placeholder: 'e.g., Filtered Water'
   },
-  [IngredientCategory.STARTER]: {
-    label: 'Starter',
+  [IngredientCategory.LEAVENING]: {
+    label: 'Leavening',
     color: 'bg-green-100 text-green-800 border-green-200',
     iconColor: 'text-green-600',
-    placeholder: 'e.g., Levain'
+    placeholder: 'e.g., Levain, Instant Yeast'
   },
   [IngredientCategory.SALT]: {
     label: 'Salt',

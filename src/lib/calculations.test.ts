@@ -19,17 +19,17 @@ describe('calculateRecipeStats', () => {
         expect(result.hydration).toBe(75);
     });
 
-    it('should handle starter hydration (100% hydration default)', () => {
+    it('should handle leavening hydration (100% hydration default sourdough starter)', () => {
         // 100g starter at 100% hydration = 50g flour + 50g water
         const ingredients: Ingredient[] = [
             { id: '1', name: 'Flour', weight: 100, category: IngredientCategory.FLOUR },
-            { id: '2', name: 'Starter', weight: 100, category: IngredientCategory.STARTER, hydration: 100 }
+            { id: '2', name: 'Starter', weight: 100, category: IngredientCategory.LEAVENING, hydration: 100 }
         ];
 
         const result = calculateRecipeStats(ingredients);
 
-        // Total Flour: 100 (raw) + 50 (from starter) = 150
-        // Total Water: 0 (raw) + 50 (from starter) = 50
+        // Total Flour: 100 (raw) + 50 (from leavening) = 150
+        // Total Water: 0 (raw) + 50 (from leavening) = 50
         // Hydration: 50 / 150 = 33.333...
 
         expect(result.totalFlour).toBe(150);
@@ -37,12 +37,30 @@ describe('calculateRecipeStats', () => {
         expect(result.hydration).toBeCloseTo(33.33, 2);
     });
 
-    it('should handle custom starter hydration (e.g. stiffer starter)', () => {
+    it('should handle yeast as leavening with 0% hydration', () => {
+        // 500g flour, 350g water, 5g yeast (0% hydration)
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 500, category: IngredientCategory.FLOUR },
+            { id: '2', name: 'Water', weight: 350, category: IngredientCategory.WATER },
+            { id: '3', name: 'Yeast', weight: 5, category: IngredientCategory.LEAVENING, hydration: 0 }
+        ];
+
+        const result = calculateRecipeStats(ingredients);
+
+        // Total Flour: 500 + 5 = 505
+        // Total Water: 350
+        // Hydration: 350 / 505 = 69.306...
+        expect(result.totalFlour).toBe(505);
+        expect(result.totalWater).toBe(350);
+        expect(result.hydration).toBeCloseTo(69.31, 2);
+    });
+
+    it('should handle custom leavening hydration (e.g. stiffer starter)', () => {
         // 100g starter at 60% hydration
         // Flour = Weight / (1 + 0.6) = 100 / 1.6 = 62.5
         // Water = 100 - 62.5 = 37.5
         const ingredients: Ingredient[] = [
-            { id: '1', name: 'Starter', weight: 100, category: IngredientCategory.STARTER, hydration: 60 }
+            { id: '1', name: 'Starter', weight: 100, category: IngredientCategory.LEAVENING, hydration: 60 }
         ];
 
         const result = calculateRecipeStats(ingredients);
@@ -132,5 +150,27 @@ describe('calculateRecipeStats', () => {
 
         expect(result.totalWater).toBe(16);
         expect(result.hydration).toBe(16);
+    });
+
+    it('should calculate weight per portion correctly', () => {
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 500, category: IngredientCategory.FLOUR },
+            { id: '2', name: 'Water', weight: 350, category: IngredientCategory.WATER }
+        ];
+
+        const result = calculateRecipeStats(ingredients, 2);
+
+        expect(result.totalWeight).toBe(850);
+        expect(result.weightPerPortion).toBe(425);
+    });
+
+    it('should handle zero portions gracefully', () => {
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 500, category: IngredientCategory.FLOUR }
+        ];
+
+        const result = calculateRecipeStats(ingredients, 0);
+
+        expect(result.weightPerPortion).toBe(0);
     });
 });

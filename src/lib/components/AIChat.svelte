@@ -10,19 +10,23 @@
     recipeName: string;
     ingredients: Ingredient[];
     hydration: number;
+    portions: number;
     notes: string;
     onUpdateRecipe: (data: {
       recipeName?: string;
       ingredients?: any[];
+      portions?: number;
+      targetHydration?: number;
       notes?: string;
     }) => void;
   }
 
-  let { recipeName, ingredients, hydration, notes, onUpdateRecipe }: Props = $props();
+  let { recipeName, ingredients, hydration, portions, notes, onUpdateRecipe }: Props = $props();
 
   let chatMessages = $state<{ role: "user" | "assistant"; content: string }[]>([]);
   let userInput = $state("");
   let isAnalyzing = $state(false);
+  let isEditingKey = $state(false);
   let chatContainer = $state<HTMLElement | null>(null);
 
   // API Key handling
@@ -32,6 +36,7 @@
 
   onMount(() => {
     const localKey = localStorage.getItem('gemini_api_key');
+    if (localKey) apiKeyInput = localKey;
     // process.env.API_KEY is defined in vite.config.ts
     const envKey = (process.env.API_KEY || process.env.GEMINI_API_KEY);
     hasKey = !!(localKey || envKey);
@@ -42,6 +47,7 @@
     isSavingKey = true;
     localStorage.setItem('gemini_api_key', apiKeyInput.trim());
     hasKey = true;
+    isEditingKey = false;
     isSavingKey = false;
   }
 
@@ -67,10 +73,17 @@
         recipeName,
         ingredients,
         hydration,
+        portions,
+        notes,
       });
 
       console.log("AI Response:", response);
-      chatMessages.push({ role: "assistant", content: response.advice });
+      if (response.advice) {
+        chatMessages.push({ role: "assistant", content: response.advice });
+      } else if (!response.recipeUpdate) {
+        // Fallback message if AI provides neither advice nor recipe update
+        chatMessages.push({ role: "assistant", content: "I've processed your request." });
+      }
 
       if (response.recipeUpdate) {
         onUpdateRecipe(response.recipeUpdate);
@@ -107,10 +120,10 @@
 </script>
 
 <div
-  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-[2rem] h-[600px] overflow-hidden"
+  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-3xl sm:rounded-[2rem] h-[500px] sm:h-[600px] overflow-hidden"
 >
   <div
-    class="flex justify-between items-center bg-slate-50/50 p-6 border-slate-100 border-b"
+    class="flex justify-between items-center bg-slate-50/50 p-4 sm:p-6 border-slate-100 border-b"
   >
     <div class="flex items-center gap-3">
       <div class="bg-amber-100 p-2 rounded-xl">
@@ -129,13 +142,12 @@
       {#if hasKey}
         <button
           onclick={() => {
-            localStorage.removeItem('gemini_api_key');
-            hasKey = false;
+            isEditingKey = !isEditingKey;
           }}
-          class="font-black text-[10px] text-slate-400 hover:text-amber-600 uppercase tracking-widest transition"
+          class="font-black text-[10px] {isEditingKey ? 'text-amber-600' : 'text-slate-400'} hover:text-amber-600 uppercase tracking-widest transition"
           title="Change API Key"
         >
-          Key
+          {isEditingKey ? 'Cancel' : 'Key'}
         </button>
       {/if}
       {#if chatMessages.length > 0}
@@ -151,9 +163,9 @@
 
   <div
     bind:this={chatContainer}
-    class="flex-1 space-y-6 p-6 overflow-y-auto scroll-smooth"
+    class="flex-1 space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-y-auto scroll-smooth"
   >
-    {#if !hasKey}
+    {#if !hasKey || isEditingKey}
       <div
         class="flex flex-col justify-center items-center space-y-6 px-4 h-full text-center"
         in:fade
@@ -163,7 +175,7 @@
         </div>
         <div>
           <h4 class="font-black text-slate-900 text-lg uppercase tracking-tight">
-            Gemini API Key Required
+            {hasKey ? 'Update Gemini API Key' : 'Gemini API Key Required'}
           </h4>
           <p class="mt-2 max-w-[280px] font-medium text-slate-500 text-sm leading-relaxed">
             To use the AI assistant, you need a Gemini API key. Your key is stored locally in your browser.
@@ -181,13 +193,29 @@
             class="bg-slate-50 px-4 py-3 border border-slate-200 focus:border-amber-500 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/10 w-full text-sm transition-all"
             required
           />
-          <button
-            type="submit"
-            disabled={!apiKeyInput.trim() || isSavingKey}
-            class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 py-3 rounded-2xl font-bold text-white text-sm transition-all"
-          >
-            {isSavingKey ? 'Saving...' : 'Start Baking with AI'}
-          </button>
+          <div class="flex gap-2">
+            {#if hasKey}
+              <button
+                type="button"
+                onclick={() => {
+                  localStorage.removeItem('gemini_api_key');
+                  apiKeyInput = "";
+                  hasKey = false;
+                  isEditingKey = false;
+                }}
+                class="flex-1 bg-red-50 hover:bg-red-100 py-3 rounded-2xl font-bold text-red-600 text-sm transition-all"
+              >
+                Clear
+              </button>
+            {/if}
+            <button
+              type="submit"
+              disabled={!apiKeyInput.trim() || isSavingKey}
+              class="flex-[2] bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 py-3 rounded-2xl font-bold text-white text-sm transition-all"
+            >
+              {isSavingKey ? 'Saving...' : hasKey ? 'Update Key' : 'Start Baking with AI'}
+            </button>
+          </div>
         </form>
 
         <a
