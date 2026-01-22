@@ -12,7 +12,7 @@ export class SyncService {
 
     this.onSyncCallback = onSync;
     this.socket = new PartySocket({
-      host: PUBLIC_PARTYKIT_HOST || "bakers-assistant.dldx.partykit.dev", 
+        host: PUBLIC_PARTYKIT_HOST || "bakers-assistant.dldx.partykit.dev",
       room: syncKey,
     });
 
