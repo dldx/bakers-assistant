@@ -31,6 +31,7 @@
   import { Label } from "$lib/components/ui/label";
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
+  import { SyncService } from "$lib/syncService";
 
   // --- State Runes ---
   let ingredients = $state<Ingredient[]>([
@@ -75,6 +76,9 @@
   let activeRecipeId = $state<number | null>(null);
   let savedRecipes = $state<Recipe[]>([]);
 
+  let syncKey = $state("");
+  let syncService = $state<SyncService | null>(null);
+
   // --- Derived Runes ---
   import { calculateRecipeStats } from "$lib/calculations";
 
@@ -99,6 +103,11 @@
 
   // --- Effects & Logic ---
   onMount(async () => {
+    syncKey = localStorage.getItem("syncKey") || "";
+    if (syncKey) {
+      syncService = new SyncService(syncKey, refreshVault);
+    }
+
     await refreshVault();
     window.addEventListener("hashchange", handleHashChange);
     await handleHashChange();
@@ -293,6 +302,11 @@
     window.location.hash = `recipe/${uuid}`;
     await refreshVault();
     lastSavedJson = captureState();
+
+    if (syncService) {
+      syncService.sendSave(recipe);
+    }
+
     if (!silent) toast.success("Recipe saved to vault!");
   }
 
@@ -337,12 +351,31 @@
 
   async function deleteRecipe(id: number) {
     if (confirm("Permanently remove this recipe from the vault?")) {
+      const recipeToDelete = savedRecipes.find(r => r.id === id);
+      const uuidToDelete = recipeToDelete?.uuid;
+
       await db.recipes.delete(id);
       await refreshVault();
+
+      if (syncService && uuidToDelete) {
+        syncService.sendDelete(uuidToDelete);
+      }
+
       if (activeRecipeId === id) {
         clearToDefaults();
       }
       toast.success("Recipe deleted from vault");
+    }
+  }
+
+  function updateSyncKey(key: string) {
+    syncKey = key;
+    localStorage.setItem("syncKey", key);
+    if (key) {
+      syncService = new SyncService(key, refreshVault);
+      refreshVault();
+    } else {
+      syncService = null;
     }
   }
 
@@ -821,10 +854,12 @@
       <!-- Vault View -->
       <RecipeVault
         {savedRecipes}
+        {syncKey}
         onLoadRecipe={loadRecipe}
         onRemixRecipe={remixRecipe}
         onDeleteRecipe={deleteRecipe}
         onStartNewRecipe={startNewRecipe}
+        onUpdateSyncKey={updateSyncKey}
       />
     {/if}
   </main>

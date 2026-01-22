@@ -3,20 +3,27 @@
   import { Plus, PenLine, Copy, Trash2, BookOpen } from "lucide-svelte";
   import type { Recipe } from "$lib/types";
   import { calculateRecipeStats } from "$lib/calculations";
+  import { GlassWater, Zap, Save } from "lucide-svelte";
 
   let {
     savedRecipes,
+    syncKey,
     onLoadRecipe,
     onRemixRecipe,
     onDeleteRecipe,
     onStartNewRecipe,
+    onUpdateSyncKey,
   } = $props<{
     savedRecipes: Recipe[];
+    syncKey: string;
     onLoadRecipe: (recipe: Recipe) => void;
     onRemixRecipe: (recipe: Recipe) => void;
     onDeleteRecipe: (id: number) => void;
     onStartNewRecipe: () => void;
+    onUpdateSyncKey: (key: string) => void;
   }>();
+
+  let tempSyncKey = $state(syncKey);
 </script>
 
 <div class="mx-auto py-12 max-w-4xl" in:fade>
@@ -29,13 +36,32 @@
         Your personal collection of artisanal formulas.
       </p>
     </div>
-    <button
-      onclick={onStartNewRecipe}
-      class="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 px-6 py-3 rounded-2xl font-bold text-amber-700 transition"
-    >
-      <span>Start New Recipe</span>
-      <Plus class="w-4 h-4" />
-    </button>
+    <div class="flex items-center gap-4">
+      <div class="group relative">
+        <input
+          type="text"
+          placeholder="Sync Key (e.g. secret123)"
+          bind:value={tempSyncKey}
+          onkeydown={(e) => e.key === "Enter" && onUpdateSyncKey(tempSyncKey)}
+          class="bg-slate-100 hover:bg-slate-200 focus:bg-white px-4 py-3 rounded-2xl outline-hidden focus:ring-2 focus:ring-sky-500 w-48 sm:w-64 font-bold placeholder:font-bold text-slate-700 text-sm transition-all"
+        />
+        {#if tempSyncKey !== syncKey}
+          <button
+            onclick={() => onUpdateSyncKey(tempSyncKey)}
+            class="top-1/2 right-2 absolute bg-sky-500 hover:bg-sky-600 p-1.5 rounded-lg text-white transition-colors -translate-y-1/2"
+          >
+            <Save class="w-3.5 h-3.5" />
+          </button>
+        {/if}
+      </div>
+      <button
+        onclick={onStartNewRecipe}
+        class="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 px-6 py-3 rounded-2xl font-bold text-amber-700 transition"
+      >
+        <span>Start New Recipe</span>
+        <Plus class="w-4 h-4" />
+      </button>
+    </div>
   </div>
 
   {#if savedRecipes.length === 0}
