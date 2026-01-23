@@ -48,10 +48,10 @@
   }
 </script>
 
-<div class="mx-auto py-12 max-w-4xl" in:fade>
-  <div class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-12 p-2">
+<div class="mx-auto py-4 max-w-4xl" in:fade>
+  <div class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-12 p-4 sm:p-4 pt-0">
     <div class="flex-1">
-      <h2 class="mb-2 font-[Lilita_One] font-normal text-slate-900 text-2xl sm:text-4xl">
+      <h2 class="mb-2 font-[Lilita_One] font-normal text-slate-900 text-3xl sm:text-4xl">
         The Recipe Vault
       </h2>
       <p class="font-medium text-slate-500">
@@ -138,7 +138,7 @@
 
   {#if savedRecipes.length === 0}
     <div
-      class="bg-white shadow-inner p-24 border-2 border-slate-200 border-dashed rounded-[3rem] text-center"
+      class="bg-white shadow-inner p-24 border-2 border-slate-200 border-dashed rounded-0 sm:rounded-[3rem] text-center"
     >
       <BookOpen class="mx-auto mb-6 w-16 h-16 text-slate-200" />
       <p class="font-bold text-slate-400 text-lg">
