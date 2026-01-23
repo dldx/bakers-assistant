@@ -770,7 +770,7 @@
               {:else}
                 {#each stages as stage (stage.id)}
                   <div
-                    class="bg-white/50 shadow-sm p-6 sm:p-8 border border-slate-100 rounded-3xl"
+                    class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl"
                     transition:slide
                   >
                     <div class="flex justify-between items-center mb-8">

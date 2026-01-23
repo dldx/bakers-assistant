@@ -30,7 +30,7 @@
 </script>
 
 <div
-  class="group relative flex items-center gap-2 sm:gap-3 {ing.checked &&
+  class="group relative flex items-center gap-2 sm:gap-3 pt-3 {ing.checked &&
   isCookingMode
     ? 'opacity-40'
     : ''}"
@@ -38,14 +38,14 @@
 >
   <!-- Drag Handle Indicator -->
   {#if !isCookingMode}
-    <div class="flex items-center opacity-0 group-hover:opacity-100 text-slate-300 transition-opacity cursor-grab active:cursor-grabbing">
-      <GripVertical class="w-4 h-4" />
+    <div class="flex items-center opacity-0 group-hover:opacity-100 h-10 text-slate-300 transition-opacity cursor-grab active:cursor-grabbing">
+      <GripVertical class="w-3 sm:w-4 h-3 sm:h-4" />
     </div>
   {/if}
 
   <!-- Cooking Mode: Checkbox -->
   {#if isCookingMode}
-    <div class="flex items-center">
+    <div class="flex items-center h-10">
       <Checkbox
         checked={ing.checked}
         onCheckedChange={(v) => onUpdate(ing.id, { checked: v })}
@@ -53,13 +53,13 @@
     </div>
   {:else}
     <!-- Category Switcher -->
-    <div class="relative">
+    <div class="relative flex items-center h-10">
       <button
         onclick={() => (isMenuOpen = !isMenuOpen)}
-        class="group/icon flex justify-center items-center bg-white hover:bg-slate-50 shadow-sm p-2 border border-slate-200 hover:border-amber-400 rounded-xl transition-all"
+        class="group/icon flex justify-center items-center bg-white hover:bg-slate-50 shadow-sm p-1.5 sm:p-2 border border-slate-200 hover:border-amber-400 rounded-lg sm:rounded-xl transition-all"
         title="Change Category"
       >
-        <Icon class="w-4 h-4 {meta.iconColor}" />
+        <Icon class="w-3.5 h-3.5 sm:w-4 sm:h-4 {meta.iconColor}" />
       </button>
 
       {#if isMenuOpen}
@@ -98,7 +98,7 @@
     </div>
   {/if}
 
-  <Field.Field class="min-w-30 grow">
+  <Field.Field class="min-w-0 grow" orientation="horizontal">
     <Textarea
       rows={1}
       placeholder={meta.placeholder}
@@ -106,24 +106,24 @@
       disabled={isCookingMode}
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
-      class="resize-none grow bg-slate-50/50 disabled:opacity-100  focus:bg-white min-h-auto px-3 border-slate-100 focus:border-amber-500 rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-sm transition-all text-black {ing.checked &&
+      class="resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-10 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
       isCookingMode
-        ? 'line-through decoration-2 decoration-slate-400 font-bold  border-0 bg-transparent shadow-none' :
-        isCookingMode ? ' font-bold border-0 bg-transparent shadow-none'
+        ? 'line-through decoration-2 decoration-slate-400 font-bold border-0 bg-transparent shadow-none' :
+        isCookingMode ? 'font-bold border-0 bg-transparent shadow-none'
         : 'font-medium'}"
       style="transition: text-decoration 0.3s ease;"
     />
   </Field.Field>
 
-  {#if ing.category === IngredientCategory.FLOUR}
-    <Field.Field class="hidden sm:flex flex-col items-center gap-0.5 w-fit">
+  {#if ing.category === IngredientCategory.FLOUR && !isCookingMode}
+    <Field.Field class="relative flex flex-col items-center gap-0.5 w-fit">
       <Field.Label
         for="protein-{ing.id}"
-        class="font-extrabold text-[8px] text-slate-400 uppercase tracking-widest"
-        >Protein</Field.Label
+        class="-top-3.5 left-1/2 absolute font-extrabold text-[7px] text-slate-400 sm:text-[8px] uppercase tracking-widest -translate-x-1/2"
+        >Prot.</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
+        class="flex items-center bg-white shadow-xs px-1 sm:px-2 border border-slate-200 rounded-lg w-fit h-7"
       >
         <Input
           id="protein-{ing.id}"
@@ -135,20 +135,20 @@
             onUpdate(ing.id, {
               proteinContent: Number(e.currentTarget.value),
             })}
-          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[4ch] sm:w-[5ch] h-auto font-black text-[10px] text-slate-700 sm:text-xs text-center number-input-no-spin"
         />
-        <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
+        <span class="ml-0.5 font-mono font-bold text-[8px] text-slate-400 sm:text-[9px]">%</span>
       </div>
     </Field.Field>
-  {:else if ing.category === IngredientCategory.LEAVENING}
-    <Field.Field class="hidden sm:flex flex-col items-center gap-0.5 w-fit">
+  {:else if ing.category === IngredientCategory.LEAVENING && !isCookingMode}
+    <Field.Field class="relative flex flex-col items-center gap-0.5 w-fit">
       <Field.Label
         for="hydration-{ing.id}"
-        class="font-extrabold text-[8px] text-slate-400 uppercase tracking-widest"
-        >Hydration</Field.Label
+        class="-top-3.5 left-1/2 absolute font-extrabold text-[7px] text-slate-400 sm:text-[8px] uppercase tracking-widest -translate-x-1/2"
+        >Hydr.</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
+        class="flex items-center bg-white shadow-xs px-1 sm:px-2 border border-slate-200 rounded-lg w-fit h-7"
       >
         <Input
           id="hydration-{ing.id}"
@@ -160,21 +160,22 @@
             onUpdate(ing.id, {
               hydration: Number(e.currentTarget.value),
             })}
-          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[4ch] sm:w-[5ch] h-auto font-black text-[10px] text-slate-700 sm:text-xs text-center number-input-no-spin"
         />
-        <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
+        <span class="ml-0.5 font-mono font-bold text-[8px] text-slate-400 sm:text-[9px]">%</span>
       </div>
     </Field.Field>
-  {:else if ing.category === IngredientCategory.TANGZHONG}
-    <Field.Field class="hidden sm:flex flex-col items-center gap-0.5 w-fit">
+  {:else if ing.category === IngredientCategory.TANGZHONG && !isCookingMode}
+    <Field.Field class="relative flex flex-col items-center gap-0.5 w-fit">
       <Field.Label
         for="ratio-{ing.id}"
-        class="font-extrabold text-[8px] text-slate-400 uppercase tracking-widest"
-        >Ratio 1:</Field.Label
+        class="-top-3.5 left-1/2 absolute font-extrabold text-[7px] text-slate-400 sm:text-[8px] uppercase tracking-widest -translate-x-1/2"
+        >Ratio</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
+        class="flex items-center bg-white shadow-xs px-1 sm:px-2 border border-slate-200 rounded-lg w-fit h-7"
       >
+        <span class="font-mono font-bold text-[8px] text-slate-400 sm:text-[9px]">1:</span>
         <Input
           id="ratio-{ing.id}"
           type="number"
@@ -185,19 +186,19 @@
             onUpdate(ing.id, {
               tangzhongRatio: Number(e.currentTarget.value),
             })}
-          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[5ch] h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[3ch] sm:w-[5ch] h-auto font-black text-[10px] text-slate-700 sm:text-xs text-center number-input-no-spin"
         />
       </div>
     </Field.Field>
-  {:else if ing.category === IngredientCategory.FAT || ing.category === IngredientCategory.MILK}
-    <Field.Field class="hidden sm:flex flex-col items-center gap-0.5 w-fit">
+  {:else if (ing.category === IngredientCategory.FAT || ing.category === IngredientCategory.MILK) && !isCookingMode}
+    <Field.Field class="relative flex flex-col items-center gap-0.5 w-fit">
       <Field.Label
         for="water-{ing.id}"
-        class="font-extrabold text-[8px] text-slate-400 uppercase tracking-widest"
+        class="-top-3.5 left-1/2 absolute font-extrabold text-[7px] text-slate-400 sm:text-[8px] uppercase tracking-widest -translate-x-1/2"
         >Water</Field.Label
       >
       <div
-        class="flex items-center bg-white shadow-xs px-2 border border-slate-200 rounded-lg w-fit h-fit"
+        class="flex items-center bg-white shadow-xs px-1 sm:px-2 border border-slate-200 rounded-lg w-fit h-7"
       >
         <Input
           id="water-{ing.id}"
@@ -210,14 +211,14 @@
             onUpdate(ing.id, {
               waterContent: Number(e.currentTarget.value),
             })}
-          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-8 h-auto font-black text-slate-700 text-xs text-center number-input-no-spin"
+          class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 w-[3ch] sm:w-8 h-auto font-black text-[10px] text-slate-700 sm:text-xs text-center number-input-no-spin"
         />
-        <span class="ml-0.5 font-mono font-bold text-[9px] text-slate-400">%</span>
+        <span class="ml-0.5 font-mono font-bold text-[8px] text-slate-400 sm:text-[9px]">%</span>
       </div>
     </Field.Field>
   {/if}
 
-  <Field.Field class="w-fit">
+  <Field.Field class="w-fit" orientation="horizontal">
     <Field.Label for="weight-{ing.id}" class="sr-only">Weight</Field.Label>
     <div
       class="flex items-center rounded-xl transition-all {ing.checked &&
@@ -235,7 +236,7 @@
           onUpdate(ing.id, {
             weight: Number((e.target as HTMLInputElement).value),
           })}
-        class="bg-transparent disabled:opacity-100 number-input-no-spin h-10 border-none w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
+        class="bg-transparent disabled:opacity-100 number-input-no-spin h-10 border-none w-[5ch] sm:w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
         isCookingMode
           ? 'line-through decoration-2 decoration-slate-400'
           : ''}"
@@ -243,14 +244,14 @@
         placeholder="0"
       />
       <span
-        class="ml-1 font-black text-[10px] uppercase"
+        class="ml-0.5 sm:ml-1 font-black text-[9px] sm:text-[10px] uppercase"
         >g</span
       >
     </div>
   </Field.Field>
 
   <div
-    class="hidden sm:block w-10 sm:w-16 text-right {ing.checked && isCookingMode
+    class="flex items-center justify-end w-10 sm:w-16 h-10 text-right {isCookingMode ? 'hidden' : 'block'} {ing.checked && isCookingMode
       ? 'opacity-50'
       : ''}"
     style="transition: opacity 0.3s ease;"
@@ -265,8 +266,8 @@
   <button
     onclick={() => onRemove(ing.id)}
     disabled={isCookingMode}
-    class="disabled:hidden hover:bg-red-50 p-1.5 rounded-lg text-slate-200 hover:text-red-500 transition-colors disabled:cursor-not-allowed"
+    class="disabled:hidden flex justify-center items-center hover:bg-red-50 p-1 sm:p-1.5 rounded-sm sm:rounded-lg w-10 h-10 text-slate-200 hover:text-red-500 transition-colors disabled:cursor-not-allowed"
   >
-    <Trash2 class="w-4 h-4" />
+    <Trash2 class="w-3.5 sm:w-4 h-3.5 sm:h-4" />
   </button>
 </div>
