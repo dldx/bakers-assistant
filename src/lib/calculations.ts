@@ -1,23 +1,34 @@
-import { IngredientCategory, type Ingredient, type CalculationResult } from "./types";
+import { IngredientCategory, type Ingredient, type CalculationResult, type BreakdownItem } from "./types";
 
 export function calculateRecipeStats(ingredients: Ingredient[], portions: number = 1): CalculationResult {
     let totalFlour = 0;
     let totalWater = 0;
     let totalWeight = 0;
+    const flourBreakdown: BreakdownItem[] = [];
+    const waterBreakdown: BreakdownItem[] = [];
 
     ingredients.forEach((ing) => {
         totalWeight += ing.weight;
+        const name = ing.name || "Unnamed Ingredient";
+        const stageId = ing.stageId;
+
         if (ing.category === IngredientCategory.FLOUR) {
             totalFlour += ing.weight;
+            flourBreakdown.push({ name, amount: ing.weight, stageId });
         } else if (ing.category === IngredientCategory.WATER) {
             totalWater += ing.weight;
+            waterBreakdown.push({ name, amount: ing.weight, stageId });
         } else if (ing.category === IngredientCategory.MILK) {
             const content = ing.waterContent ?? 87;
-            totalWater += ing.weight * (content / 100);
+            const water = ing.weight * (content / 100);
+            totalWater += water;
+            waterBreakdown.push({ name, amount: water, stageId });
         } else if (ing.category === IngredientCategory.FAT) {
             // Fat/Butter can have water content (e.g., Butter is ~16-18% water, Oil is 0%)
             const content = ing.waterContent ?? 0;
-            totalWater += ing.weight * (content / 100);
+            const water = ing.weight * (content / 100);
+            totalWater += water;
+            if (water > 0) waterBreakdown.push({ name: `${name} (Water)`, amount: water, stageId });
         } else if (ing.category === IngredientCategory.TANGZHONG) {
             // Tangzhong 1:X ratio (default 1:5)
             const ratioConfig = ing.tangzhongRatio ?? 5;
@@ -26,6 +37,8 @@ export function calculateRecipeStats(ingredients: Ingredient[], portions: number
             const waterPart = ing.weight * (ratioConfig / totalParts);
             totalFlour += flourPart;
             totalWater += waterPart;
+            flourBreakdown.push({ name: `${name} (Flour)`, amount: flourPart, stageId });
+            waterBreakdown.push({ name: `${name} (Water)`, amount: waterPart, stageId });
         } else if (ing.category === IngredientCategory.LEAVENING) {
             const hydrationConfig = ing.hydration ?? 100;
             const ratio = hydrationConfig / 100;
@@ -33,6 +46,8 @@ export function calculateRecipeStats(ingredients: Ingredient[], portions: number
             const waterInLeavening = ing.weight - flourInLeavening;
             totalFlour += flourInLeavening;
             totalWater += waterInLeavening;
+            flourBreakdown.push({ name: `${name} (Flour)`, amount: flourInLeavening, stageId });
+            waterBreakdown.push({ name: `${name} (Water)`, amount: waterInLeavening, stageId });
         }
     });
 
@@ -49,5 +64,7 @@ export function calculateRecipeStats(ingredients: Ingredient[], portions: number
         hydration: totalFlour > 0 ? (totalWater / totalFlour) * 100 : 0,
         weightPerPortion: portions > 0 ? totalWeight / portions : 0,
         ingredientPercentages,
+        flourBreakdown,
+        waterBreakdown,
     };
 }

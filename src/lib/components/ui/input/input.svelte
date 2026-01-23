@@ -25,7 +25,7 @@
 		bind:this={ref}
 		data-slot={dataSlot}
 		class={cn(
-			"selection:bg-primary dark:bg-input/30 selection:text-primary-foreground border-input ring-offset-background placeholder:text-muted-foreground flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 pt-1.5 text-sm font-medium shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
+			"flex bg-transparent selection:bg-primary dark:bg-input/30 disabled:opacity-50 shadow-xs px-3 pt-1.5 border border-input rounded-md outline-none ring-offset-background w-full min-w-0 h-9 font-medium selection:text-primary-foreground placeholder:text-muted-foreground text-sm transition-[color,box-shadow] disabled:cursor-not-allowed",
 			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
 			className
@@ -40,7 +40,7 @@
 		bind:this={ref}
 		data-slot={dataSlot}
 		class={cn(
-			"border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"flex bg-background selection:bg-primary dark:bg-input/30 disabled:opacity-50 shadow-xs px-3 py-1 border border-input rounded-md outline-none ring-offset-background w-full min-w-0 h-9 selection:text-primary-foreground placeholder:text-muted-foreground md:text-sm text-base transition-[color,box-shadow] disabled:cursor-not-allowed",
 			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
 			className

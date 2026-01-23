@@ -17,6 +17,10 @@ describe('calculateRecipeStats', () => {
         expect(result.totalWater).toBe(75);
         expect(result.totalWeight).toBe(175);
         expect(result.hydration).toBe(75);
+        expect(result.flourBreakdown).toHaveLength(1);
+        expect(result.flourBreakdown[0]).toEqual({ name: 'Flour', amount: 100, stageId: undefined });
+        expect(result.waterBreakdown).toHaveLength(1);
+        expect(result.waterBreakdown[0]).toEqual({ name: 'Water', amount: 75, stageId: undefined });
     });
 
     it('should handle leavening hydration (100% hydration default sourdough starter)', () => {
@@ -35,6 +39,23 @@ describe('calculateRecipeStats', () => {
         expect(result.totalFlour).toBe(150);
         expect(result.totalWater).toBe(50);
         expect(result.hydration).toBeCloseTo(33.33, 2);
+        expect(result.flourBreakdown).toContainEqual({ name: 'Starter (Flour)', amount: 50, stageId: undefined });
+        expect(result.waterBreakdown).toContainEqual({ name: 'Starter (Water)', amount: 50, stageId: undefined });
+    });
+
+    it('should handle recipe stages correctly in breakdown', () => {
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Levain Flour', weight: 100, category: IngredientCategory.FLOUR, stageId: 'levain' },
+            { id: '2', name: 'Main Flour', weight: 400, category: IngredientCategory.FLOUR, stageId: 'main' },
+            { id: '3', name: 'Water', weight: 350, category: IngredientCategory.WATER, stageId: 'main' }
+        ];
+
+        const result = calculateRecipeStats(ingredients);
+
+        expect(result.totalFlour).toBe(500);
+        expect(result.flourBreakdown).toContainEqual({ name: 'Levain Flour', amount: 100, stageId: 'levain' });
+        expect(result.flourBreakdown).toContainEqual({ name: 'Main Flour', amount: 400, stageId: 'main' });
+        expect(result.waterBreakdown[0].stageId).toBe('main');
     });
 
     it('should handle yeast as leavening with 0% hydration', () => {

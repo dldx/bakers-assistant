@@ -47,7 +47,7 @@
 <div class="mx-auto py-12 max-w-4xl" in:fade>
   <div class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-12 p-2">
     <div class="flex-1">
-      <h2 class="mb-2 font-black text-slate-900 text-2xl sm:text-4xl">
+      <h2 class="mb-2 font-[Lilita_One] font-normal text-slate-900 text-2xl sm:text-4xl">
         The Recipe Vault
       </h2>
       <p class="font-medium text-slate-500">

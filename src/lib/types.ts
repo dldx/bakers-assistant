@@ -43,6 +43,12 @@ export interface Recipe {
   notes?: string;
 }
 
+export interface BreakdownItem {
+  name: string;
+  amount: number;
+  stageId?: string;
+}
+
 export interface CalculationResult {
   totalWeight: number;
   totalFlour: number;
@@ -50,4 +56,6 @@ export interface CalculationResult {
   hydration: number;
   weightPerPortion: number;
   ingredientPercentages: Record<string, number>;
+  flourBreakdown: BreakdownItem[];
+  waterBreakdown: BreakdownItem[];
 }

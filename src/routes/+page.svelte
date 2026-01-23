@@ -20,10 +20,16 @@
     ChefHat,
   } from "lucide-svelte";
   import { db } from "$lib/db";
-  import { IngredientCategory, type Ingredient, type Recipe, type RecipeStage } from "$lib/types";
+  import {
+    IngredientCategory,
+    type Ingredient,
+    type Recipe,
+    type RecipeStage,
+  } from "$lib/types";
   import { CATEGORY_META } from "$lib/constants";
   import IngredientBucket from "$lib/components/IngredientBucket.svelte";
   import NotesEditor from "$lib/components/NotesEditor.svelte";
+  import BakersMaths from "$lib/components/BakersMaths.svelte";
   import AIChat from "$lib/components/AIChat.svelte";
   import RecipeVault from "$lib/components/RecipeVault.svelte";
   import { toast } from "svelte-sonner";
@@ -82,6 +88,7 @@
 
   // --- Derived Runes ---
   import { calculateRecipeStats } from "$lib/calculations";
+  import { Textarea } from "$lib/components/ui/textarea";
 
   // --- Derived Runes ---
   const calculations = $derived(calculateRecipeStats(ingredients, portions));
@@ -99,7 +106,7 @@
 
   let lastSavedJson = $state("");
   const isDirty = $derived(
-    lastSavedJson !== "" && lastSavedJson !== captureState()
+    lastSavedJson !== "" && lastSavedJson !== captureState(),
   );
 
   // --- Effects & Logic ---
@@ -119,7 +126,10 @@
     const hash = window.location.hash.substring(1);
     if (hash && hash.startsWith("recipe/")) {
       const uuid = hash.replace("recipe/", "");
-      if (activeRecipeId && savedRecipes.find((r) => r.id === activeRecipeId)?.uuid === uuid) {
+      if (
+        activeRecipeId &&
+        savedRecipes.find((r) => r.id === activeRecipeId)?.uuid === uuid
+      ) {
         return; // Already loaded
       }
       const recipe = await db.recipes.where("uuid").equals(uuid).first();
@@ -171,7 +181,6 @@
     if (stage) stage.name = name;
   }
 
-
   function updateIngredient(id: string, updates: Partial<Ingredient>) {
     const index = ingredients.findIndex((i) => i.id === id);
     if (index !== -1) {
@@ -183,25 +192,31 @@
     ingredients = ingredients.filter((i) => i.id !== id);
   }
 
-  function handleDnd(category: IngredientCategory, stageId: string | undefined, newBucketItems: Ingredient[]) {
+  function handleDnd(
+    category: IngredientCategory,
+    stageId: string | undefined,
+    newBucketItems: Ingredient[],
+  ) {
     // 1. Update items in this bucket to the correct category/stage
-    const updated = newBucketItems.map(item => ({
+    const updated = newBucketItems.map((item) => ({
       ...item,
       category,
-      stageId
+      stageId,
     }));
 
     // 2. IDs of items that WERE in this bucket or ARE NOW in this bucket
-    const currentBucketItems = ingredients.filter(ing => ing.category === category && ing.stageId === stageId);
-    const currentIds = new Set(currentBucketItems.map(i => i.id));
-    const newIds = new Set(updated.map(i => i.id));
+    const currentBucketItems = ingredients.filter(
+      (ing) => ing.category === category && ing.stageId === stageId,
+    );
+    const currentIds = new Set(currentBucketItems.map((i) => i.id));
+    const newIds = new Set(updated.map((i) => i.id));
     const allAffectedIds = new Set([...currentIds, ...newIds]);
 
     // 3. Find insertion index (where the bucket starts)
-    let insertionIndex = ingredients.findIndex(ing => currentIds.has(ing.id));
+    let insertionIndex = ingredients.findIndex((ing) => currentIds.has(ing.id));
     if (insertionIndex === -1) {
       // If bucket was empty, put it at the end of its stage or at the end of the list
-      const stageItems = ingredients.filter(ing => ing.stageId === stageId);
+      const stageItems = ingredients.filter((ing) => ing.stageId === stageId);
       if (stageItems.length > 0) {
         const lastItem = stageItems[stageItems.length - 1];
         insertionIndex = ingredients.indexOf(lastItem) + 1;
@@ -211,7 +226,7 @@
     }
 
     // 4. Remove all affected items and splice in the updated ones
-    const remaining = ingredients.filter(ing => !allAffectedIds.has(ing.id));
+    const remaining = ingredients.filter((ing) => !allAffectedIds.has(ing.id));
     const next = [...remaining];
     next.splice(insertionIndex, 0, ...updated);
 
@@ -233,7 +248,12 @@
   }
 
   function scaleToTargetServingWeight(targetWeight: number) {
-    if (targetWeight <= 0 || calculations.totalWeight === 0 || !isScalingEnabled) return;
+    if (
+      targetWeight <= 0 ||
+      calculations.totalWeight === 0 ||
+      !isScalingEnabled
+    )
+      return;
     const targetTotal = targetWeight * portions;
     const factor = targetTotal / calculations.totalWeight;
     ingredients = ingredients.map((ing) => ({
@@ -243,7 +263,8 @@
   }
 
   function scaleToTotalWeight(targetTotal: number) {
-    if (targetTotal <= 0 || calculations.totalWeight === 0 || !isScalingEnabled) return;
+    if (targetTotal <= 0 || calculations.totalWeight === 0 || !isScalingEnabled)
+      return;
     const factor = targetTotal / calculations.totalWeight;
     ingredients = ingredients.map((ing) => ({
       ...ing,
@@ -261,11 +282,16 @@
     const delta = targetTotalWater - calculations.totalWater;
 
     // Find the first water ingredient to adjust
-    const waterIdx = ingredients.findIndex(i => i.category === IngredientCategory.WATER);
+    const waterIdx = ingredients.findIndex(
+      (i) => i.category === IngredientCategory.WATER,
+    );
     if (waterIdx !== -1) {
       ingredients[waterIdx] = {
         ...ingredients[waterIdx],
-        weight: Math.max(0, Math.round((ingredients[waterIdx].weight + delta) * 10) / 10)
+        weight: Math.max(
+          0,
+          Math.round((ingredients[waterIdx].weight + delta) * 10) / 10,
+        ),
       };
     } else {
       // If no water ingredient exists, add one
@@ -273,13 +299,15 @@
         id: Math.random().toString(36).substr(2, 9),
         name: "Water",
         weight: Math.max(0, Math.round(delta * 10) / 10),
-        category: IngredientCategory.WATER
+        category: IngredientCategory.WATER,
       });
     }
   }
 
   async function saveRecipe(silent = false) {
-    const existingRecipe = activeRecipeId ? savedRecipes.find((r) => r.id === activeRecipeId) : null;
+    const existingRecipe = activeRecipeId
+      ? savedRecipes.find((r) => r.id === activeRecipeId)
+      : null;
     const uuid = existingRecipe?.uuid || crypto.randomUUID();
 
     const recipe: Recipe = {
@@ -352,7 +380,7 @@
 
   async function deleteRecipe(id: number) {
     if (confirm("Permanently remove this recipe from the vault?")) {
-      const recipeToDelete = savedRecipes.find(r => r.id === id);
+      const recipeToDelete = savedRecipes.find((r) => r.id === id);
       const uuidToDelete = recipeToDelete?.uuid;
 
       await db.recipes.delete(id);
@@ -520,61 +548,54 @@
 
 <div class="bg-gray-50/30 selection:bg-amber-100 min-h-screen">
   <header
-    class="top-0 z-20 sticky bg-white/80 shadow-sm backdrop-blur-md border-b"
+    class="top-0 z-20 sticky bg-white/80 shadow-sm backdrop-blur-md border-slate-100 border-b"
   >
-    <div class="flex justify-between items-center mx-auto px-3 sm:px-6 max-w-6xl h-14 sm:h-16">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <div class="bg-amber-600 shadow-amber-200 shadow-lg p-2 sm:p-2.5 rounded-xl">
+    <div
+      class="flex justify-between items-center mx-auto px-4 sm:px-6 max-w-6xl h-14 sm:h-16"
+    >
+      <button
+        onclick={startNewRecipe}
+        class="group flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+      >
+        <div
+          class="bg-amber-600 shadow-amber-200/50 shadow-lg p-2 sm:p-2.5 rounded-xl group-active:scale-95 transition-transform"
+        >
           <Croissant class="w-4 sm:w-5 h-4 sm:h-5 text-white" />
         </div>
-        <h1 class="flex sm:flex-row flex-col font-extrabold text-slate-800 text-lg sm:text-xl leading-4 tracking-tight">
-          Baker's<span class="text-amber-600">Assistant</span>
-        </h1>
-      </div>
+        <div class="flex flex-col text-left">
+          <h1
+            class="font-black text-slate-900 text-lg sm:text-xl leading-none tracking-tight"
+          >
+            Baker's<span class="text-amber-600 decoration-amber-200 underline underline-offset-4">Assistant</span>
+          </h1>
+        </div>
+      </button>
 
       <nav
-        class="flex items-center bg-slate-100 p-0.5 sm:p-1 border border-slate-200 rounded-xl sm:rounded-2xl"
+        class="flex items-center bg-slate-100 p-0.5 sm:p-1 border border-slate-200/60 rounded-xl sm:rounded-2xl"
       >
         <button
           onclick={() => (view = "calculator")}
-          class="px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all {view ===
+          class="px-4 sm:px-6 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all {view ===
           'calculator'
-            ? 'bg-white shadow-sm text-amber-700'
+            ? 'bg-white shadow-sm text-amber-800'
             : 'text-slate-500 hover:text-slate-800'}"
         >
-          Calculator
+          Editor
         </button>
         <button
           onclick={() => (view = "history")}
-          class="px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all {view ===
+          class="flex items-center gap-1.5 px-4 sm:px-6 py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all {view ===
           'history'
-            ? 'bg-white shadow-sm text-amber-700'
+            ? 'bg-white shadow-sm text-amber-800'
             : 'text-slate-500 hover:text-slate-800'}"
         >
-          <span class="hidden xs:inline">The Vault</span>
-          <span class="xs:hidden">Vault</span>
-          <span class="hidden sm:inline opacity-50 ml-1">({savedRecipes.length})</span>
+          Vault
+          <span class="hidden sm:inline bg-slate-200/50 opacity-70 px-1.5 py-0.5 rounded-md text-[10px]">
+            {savedRecipes.length}
+          </span>
         </button>
       </nav>
-
-      <div class="flex items-center gap-1 sm:gap-2">
-        <button
-          onclick={resetCalculator}
-          class="flex items-center gap-2 hover:bg-red-50 p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-red-500 text-sm transition-colors"
-          title="Reset"
-        >
-          <RotateCcw class="w-4 h-4" />
-          <span class="hidden lg:inline">Reset</span>
-        </button>
-        <button
-          onclick={() => saveRecipe()}
-          class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg p-2 sm:px-5 sm:py-2 rounded-xl font-bold text-white active:scale-95 transition"
-          title="Save"
-        >
-          <Save class="w-4 h-4" />
-          <span class="hidden lg:inline">Save</span>
-        </button>
-      </div>
     </div>
   </header>
 
@@ -584,27 +605,67 @@
         <!-- Left: Inputs -->
         <div class="space-y-6 lg:col-span-8" in:fade>
           <div
-            class="bg-white shadow-slate-200/50 shadow-xl sm:p-8 px-2 py-4 border border-slate-100 rounded-0 sm:rounded-4xl"
+            class="bg-white shadow-slate-200/50 shadow-xl p-4 sm:p-8 border border-slate-100 rounded-0 sm:rounded-4xl"
           >
             <div
-              class="flex md:flex-row flex-col justify-between md:items-center gap-4 sm:gap-6 mb-8 sm:mb-10 pb-6 border-slate-50 border-b"
+              class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-8 sm:mb-10 pb-6 border-slate-50 border-b"
             >
-              <Field.Field class="w-full">
-                <Input
-                  type="text"
-                  bind:value={recipeName}
-                  class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto font-black text-slate-900 sm:text-[40px] placeholder:text-slate-200 text-3xl"
-                  placeholder="Name your creation..."
-                />
-              </Field.Field>
-              <div class="flex items-center gap-3">
-                <Label for="cook-mode" class="group/cook flex items-center gap-2 cursor-pointer">
-                  <span class="font-black text-[9px] text-slate-500 uppercase tracking-tighter">
-                    <ChefHat class="inline-block mr-0.5 w-3 h-3" />
-                    Cook
-                  </span>
-                </Label>
-                <Switch id="cook-mode" bind:checked={isCookingMode} />
+              <div class="flex-1 min-w-0">
+                <Field.Field class="w-full">
+                  <Textarea
+                    bind:value={recipeName}
+                    class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto overflow-hidden font-[Lilita_One] font-normal text-slate-900 placeholder:text-slate-200 text-3xl md:text-4xl tracking-tight resize-none no-scrollbar"
+                    placeholder="Name your creation..."
+                    rows={1}
+                  />
+                </Field.Field>
+                <div class="flex items-center gap-2 mt-1">
+                  {#if isDirty}
+                    <span class="bg-amber-100 px-2 py-0.5 rounded-full font-bold text-[9px] text-amber-700 uppercase tracking-wider animate-pulse">
+                      Unsaved Changes
+                    </span>
+                  {:else}
+                    <span class="font-bold text-[9px] text-slate-400 uppercase tracking-widest">
+                      Saved to Vault
+                    </span>
+                  {/if}
+                </div>
+              </div>
+
+              <div class="flex justify-between sm:justify-end items-center gap-3 sm:gap-6">
+                <div class="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onclick={resetCalculator}
+                    class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                    title="Reset"
+                  >
+                    <RotateCcw class="w-3.5 h-3.5" />
+                    <span class="hidden sm:inline">Reset</span>
+                  </button>
+                  <button
+                    onclick={() => saveRecipe()}
+                    class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg p-2 sm:px-5 sm:py-2 rounded-xl font-bold text-white text-xs active:scale-95 transition"
+                    title="Save"
+                  >
+                    <Save class="w-3.5 h-3.5" />
+                    <span class="hidden sm:inline">Save</span>
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 border border-slate-100 rounded-2xl">
+                  <Label
+                    for="cook-mode"
+                    class="group/cook flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <span
+                      class="font-black text-[10px] text-slate-500 uppercase tracking-widest"
+                    >
+                      <ChefHat class="inline-block mr-1 w-3.5 h-3.5 text-amber-600" />
+                      Cook
+                    </span>
+                  </Label>
+                  <Switch id="cook-mode" bind:checked={isCookingMode} />
+                </div>
               </div>
             </div>
 
@@ -620,7 +681,7 @@
                       percentages={calculations.ingredientPercentages}
                       icon={CATEGORY_ICONS[cat]}
                       allIcons={CATEGORY_ICONS}
-                      isCookingMode={isCookingMode}
+                      {isCookingMode}
                       onUpdate={updateIngredient}
                       onRemove={removeIngredient}
                       onAdd={() => addIngredient(cat)}
@@ -660,7 +721,8 @@
                     <div class="space-y-6">
                       {#each Object.values(IngredientCategory) as cat}
                         {@const stageIngs = ingredients.filter(
-                          (ing) => ing.category === cat && ing.stageId === stage.id,
+                          (ing) =>
+                            ing.category === cat && ing.stageId === stage.id,
                         )}
                         {#if stageIngs.length > 0}
                           <IngredientBucket
@@ -669,7 +731,7 @@
                             percentages={calculations.ingredientPercentages}
                             icon={CATEGORY_ICONS[cat]}
                             allIcons={CATEGORY_ICONS}
-                            isCookingMode={isCookingMode}
+                            {isCookingMode}
                             onUpdate={updateIngredient}
                             onRemove={removeIngredient}
                             onAdd={() => addIngredient(cat, stage.id)}
@@ -679,10 +741,16 @@
                       {/each}
 
                       {#if !isCookingMode}
-                        <div class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t">
+                        <div
+                          class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
+                        >
                           {#each Object.entries(CATEGORY_META) as [cat, meta]}
                             <button
-                              onclick={() => addIngredient(cat as IngredientCategory, stage.id)}
+                              onclick={() =>
+                                addIngredient(
+                                  cat as IngredientCategory,
+                                  stage.id,
+                                )}
                               class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
                             >
                               <Plus class="w-3 h-3" />
@@ -698,11 +766,19 @@
                 <!-- Ungrouped ingredients if any -->
                 {@const ungrouped = ingredients.filter((ing) => !ing.stageId)}
                 {#if ungrouped.length > 0}
-                  <div class="bg-slate-50/50 p-6 sm:p-8 border border-slate-200 border-dashed rounded-3xl">
-                    <h3 class="mb-6 font-black text-slate-400 text-xs uppercase tracking-[0.2em]">General Ingredients</h3>
+                  <div
+                    class="bg-slate-50/50 p-6 sm:p-8 border border-slate-200 border-dashed rounded-3xl"
+                  >
+                    <h3
+                      class="mb-6 font-black text-slate-400 text-xs uppercase tracking-[0.2em]"
+                    >
+                      General Ingredients
+                    </h3>
                     <div class="space-y-10">
                       {#each Object.values(IngredientCategory) as cat}
-                        {@const catIngs = ungrouped.filter((ing) => ing.category === cat)}
+                        {@const catIngs = ungrouped.filter(
+                          (ing) => ing.category === cat,
+                        )}
                         {#if catIngs.length > 0}
                           <IngredientBucket
                             category={cat}
@@ -710,7 +786,7 @@
                             percentages={calculations.ingredientPercentages}
                             icon={CATEGORY_ICONS[cat]}
                             allIcons={CATEGORY_ICONS}
-                            isCookingMode={isCookingMode}
+                            {isCookingMode}
                             onUpdate={updateIngredient}
                             onRemove={removeIngredient}
                             onAdd={() => addIngredient(cat)}
@@ -720,10 +796,13 @@
                       {/each}
 
                       {#if !isCookingMode}
-                        <div class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t">
+                        <div
+                          class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
+                        >
                           {#each Object.entries(CATEGORY_META) as [cat, meta]}
                             <button
-                              onclick={() => addIngredient(cat as IngredientCategory)}
+                              onclick={() =>
+                                addIngredient(cat as IngredientCategory)}
                               class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
                             >
                               <Plus class="w-3 h-3" />
@@ -750,119 +829,22 @@
 
             <NotesEditor bind:notes />
 
-            <div class="flex justify-between items-center mt-12 pt-8 border-t">
-              <p class="font-medium text-slate-400 text-xs italic">
-                Changes are saved only when you click 'Save' in the header.
-              </p>
-            </div>
+
           </div>
         </div>
 
         <!-- Right: Summary Dashboard -->
         <div class="lg:col-span-4" in:fly={{ y: 20 }}>
           <div class="top-24 sticky space-y-6">
-            <div
-              class="group relative bg-slate-900 shadow-2xl p-6 sm:p-8 rounded-0 sm:rounded-4xl overflow-hidden text-white"
-            >
-
-              <div class="flex justify-between items-center mb-6">
-                <h3
-                  class="font-black text-[10px] text-slate-400 uppercase tracking-widest"
-                >
-                  Real-time Analysis
-                </h3>
-                <div class="flex items-center gap-3">
-                  <Label for="scale-mode" class="font-black text-[9px] text-slate-500 uppercase tracking-tighter cursor-pointer">Scale Mode</Label>
-                  <Switch id="scale-mode" bind:checked={isScalingEnabled} />
-                </div>
-              </div>
-
-              <div class="space-y-6 sm:space-y-8">
-                <div>
-                  <div class="flex justify-between items-end mb-3">
-                    <span class="font-bold text-slate-300 text-sm"
-                      >Net Hydration</span
-                    >
-                    <span class="font-black text-amber-400 text-3xl sm:text-4xl"
-                      >{calculations.hydration.toFixed(1)}%</span
-                    >
-                  </div>
-                  <div
-                    class="bg-slate-800 p-0.5 rounded-full w-full h-3 overflow-hidden"
-                  >
-                    <div
-                      class="bg-linear-to-r from-amber-500 to-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] rounded-full h-full transition-all duration-1000 ease-out"
-                      style="width: {Math.min(calculations.hydration, 100)}%"
-                    ></div>
-                  </div>
-                </div>
-
-                <div
-                  class="gap-4 sm:gap-6 grid grid-cols-2 pt-6 border-slate-800 border-t"
-                >
-                  <div>
-                    <span
-                      class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest"
-                      >Total Flour</span
-                    >
-                    <span class="font-bold text-xl sm:text-2xl"
-                      >{Math.round(calculations.totalFlour)}g</span
-                    >
-                  </div>
-                  <div>
-                    <span
-                      class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest"
-                      >Total Liquid</span
-                    >
-                    <span class="font-bold text-xl sm:text-2xl"
-                      >{Math.round(calculations.totalWater)}g</span
-                    >
-                  </div>
-                  <div class="col-span-2 pt-4 border-slate-800 border-t">
-                    <div class="gap-3 sm:gap-4 grid grid-cols-2">
-                      <Field.Field class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''} gap-0">
-                        <Field.Label class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Yield</Field.Label>
-                        <Input
-                          type="number"
-                          value={portions}
-                          onchange={(e) => scaleByYield(Number(e.currentTarget.value))}
-                          class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-amber-500' : 'text-slate-200'} text-lg sm:text-xl shadow-none h-auto"
-                          min="1"
-                        />
-                      </Field.Field>
-                      <Field.Field class="bg-slate-800/50 p-3 rounded-2xl {isScalingEnabled ? 'ring-1 ring-amber-500/50' : ''} gap-0">
-                        <Field.Label class="block mb-1 font-black text-[10px] text-slate-500 uppercase tracking-widest">Weight / Por.</Field.Label>
-                        <div class="flex items-baseline gap-1">
-                          <Input
-                            type="number"
-                            value={Math.round(calculations.weightPerPortion)}
-                            onchange={(e) => scaleToTargetServingWeight(Number(e.currentTarget.value))}
-                            readonly={!isScalingEnabled}
-                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled ? 'text-slate-200' : 'text-slate-500'} text-lg sm:text-xl shadow-none h-auto"
-                            min="1"
-                          />
-                          <span class="font-bold text-slate-500 text-xs">g</span>
-                        </div>
-                      </Field.Field>
-                      <Field.Field class="col-span-2 bg-amber-600/20 p-3 border {isScalingEnabled ? 'border-amber-600' : 'border-amber-600/30'} rounded-2xl transition-colors gap-0">
-                        <Field.Label class="block mb-1 font-black text-[10px] {isScalingEnabled ? 'text-amber-400' : 'text-amber-500/80'} uppercase tracking-widest">Final Batch Weight</Field.Label>
-                        <div class="flex items-baseline gap-1">
-                          <Input
-                            type="number"
-                            value={Math.round(calculations.totalWeight)}
-                            onchange={(e) => scaleToTotalWeight(Number(e.currentTarget.value))}
-                            readonly={!isScalingEnabled}
-                            class="bg-transparent p-0 border-none focus:ring-0 w-full font-black {isScalingEnabled ? 'text-amber-100' : 'text-amber-100/40'} text-2xl sm:text-3xl shadow-none h-auto"
-                            min="1"
-                          />
-                          <span class="ml-auto font-black text-amber-500 text-lg">g</span>
-                        </div>
-                      </Field.Field>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BakersMaths
+              {calculations}
+              {portions}
+              {stages}
+              bind:isScalingEnabled
+              onScaleByYield={scaleByYield}
+              onScaleToTargetServingWeight={scaleToTargetServingWeight}
+              onScaleToTotalWeight={scaleToTotalWeight}
+            />
 
             <!-- AI Chat Card -->
             <AIChat
