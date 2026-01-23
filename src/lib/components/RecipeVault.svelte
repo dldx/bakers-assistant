@@ -1,9 +1,12 @@
 <script lang="ts">
   import { fade, slide } from "svelte/transition";
-  import { Plus, PenLine, Copy, Trash2, BookOpen, Download, Upload, Dices, Share2 } from "lucide-svelte";
-  import type { Recipe } from "$lib/types";
+  import { Plus, PenLine, Copy, Trash2, BookOpen, Download, Upload, Dices, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from "lucide-svelte";
+  import { IngredientCategory, type Recipe, type Ingredient } from "$lib/types";
   import { calculateRecipeStats } from "$lib/calculations";
   import { GlassWater, Zap, Save } from "lucide-svelte";
+  import * as InputGroup from "$lib/components/ui/input-group";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+  import * as Tooltip from "$lib/components/ui/tooltip";
 
   let {
     savedRecipes,
@@ -33,6 +36,58 @@
 
   let tempSyncKey = $state("");
   let fileInput: HTMLInputElement;
+
+  let searchQuery = $state("");
+  let sortBy = $state<"date" | "name" | "hydration" | "sugar">("date");
+  let sortOrder = $state<"asc" | "desc">("desc");
+
+  const SORT_LABELS = {
+    date: "Date Updated",
+    name: "Alphabetical",
+    hydration: "Hydration %",
+    sugar: "Sugar %",
+  };
+
+  const SORT_LABELS_SHORT = {
+    date: "Date",
+    name: "A-Z",
+    hydration: "Hydration",
+    sugar: "Sugar",
+  };
+
+  let filteredRecipes = $derived.by(() => {
+    let result = [...savedRecipes].filter((recipe: Recipe) => {
+      const nameMatch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const ingredientMatch = recipe.ingredients.some((ing: Ingredient) =>
+        ing.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+      return nameMatch || ingredientMatch;
+    });
+
+    result.sort((a: Recipe, b: Recipe) => {
+      let comparison = 0;
+      if (sortBy === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === "date") {
+        comparison = a.updatedAt - b.updatedAt;
+      } else if (sortBy === "hydration") {
+        const hA = calculateRecipeStats(a.ingredients, a.portions || 1).hydration;
+        const hB = calculateRecipeStats(b.ingredients, b.portions || 1).hydration;
+        comparison = hA - hB;
+      } else if (sortBy === "sugar") {
+        const getSugar = (r: Recipe) => {
+          const stats = calculateRecipeStats(r.ingredients, r.portions || 1);
+          return r.ingredients
+            .filter((i: Ingredient) => i.category === IngredientCategory.SUGAR)
+            .reduce((sum: number, i: Ingredient) => sum + (stats.ingredientPercentages[i.id] || 0), 0);
+        };
+        comparison = getSugar(a) - getSugar(b);
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  });
 
   $effect(() => {
     tempSyncKey = syncKey;
@@ -146,12 +201,100 @@
       </p>
     </div>
   {:else}
-    <div class="gap-4 sm:gap-6 grid">
-      {#each savedRecipes as recipe (recipe.id)}
-        <div
-          class="group bg-white shadow-sm hover:shadow-xl p-4 sm:p-6 border border-slate-100 rounded-0 sm:rounded-3xl transition-all hover:-translate-y-1"
-          in:slide={{ axis: "y" }}
+    <div class="mb-12 px-2 sm:px-0">
+      <InputGroup.Root
+        class="bg-white shadow-slate-200/50 shadow-xl focus-within:shadow-2xl focus-within:shadow-amber-200/20 border-slate-100 focus-within:border-amber-200 rounded-2xl sm:rounded-3xl h-14 sm:h-20 overflow-hidden transition-all"
+      >
+        <InputGroup.Addon class="bg-transparent pl-4 sm:pl-8 border-none">
+          <Search class="w-4 sm:w-6 h-4 sm:h-6 text-slate-400" />
+        </InputGroup.Addon>
+        <InputGroup.Input
+          placeholder="Search..."
+          bind:value={searchQuery}
+          class="bg-transparent px-2 border-none focus-visible:ring-0 h-full font-medium text-md placeholder:text-slate-300 md:text-2xl"
+        />
+        <InputGroup.Addon
+          align="inline-end"
+          class="flex items-center gap-1 bg-transparent pr-2 sm:pr-8 border-none"
         >
+          <div class="hidden sm:block bg-slate-100 mx-2 w-px h-8 sm:h-10"></div>
+
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              {#snippet child({ props })}
+                <InputGroup.Button
+                  {...props}
+                  variant="ghost"
+                  class="flex items-center gap-1 sm:gap-2 hover:bg-slate-50 px-2 sm:px-4 rounded-xl sm:rounded-2xl h-8 sm:h-12 font-black text-[10px] text-slate-600 sm:text-sm uppercase tracking-widest"
+                >
+                  <span
+                    class="hidden sm:inline mr-1 font-bold text-slate-400 italic normal-case"
+                    >Sort by:</span
+                  >
+                  <span class="sm:hidden">{SORT_LABELS_SHORT[sortBy]}</span>
+                  <span class="hidden sm:inline">{SORT_LABELS[sortBy]}</span>
+                  <ChevronDown class="w-3 sm:w-4 h-3 sm:h-4 text-amber-500" />
+                </InputGroup.Button>
+              {/snippet}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content
+              align="end"
+              class="shadow-2xl p-2 border-slate-100 rounded-xl sm:rounded-2xl min-w-40 sm:min-w-48"
+            >
+              {#each Object.entries(SORT_LABELS) as [id, label]}
+                <DropdownMenu.Item
+                  onclick={() => (sortBy = id as any)}
+                  class="data-highlighted:bg-amber-50 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl font-bold text-slate-600 data-highlighted:text-amber-700 transition-colors"
+                >
+                  {label}
+                </DropdownMenu.Item>
+              {/each}
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+
+          <div class="bg-slate-100 mx-1 w-px h-5 sm:h-8"></div>
+
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <InputGroup.Button
+                  {...props}
+                  variant="ghost"
+                  onclick={() =>
+                    (sortOrder = sortOrder === "asc" ? "desc" : "asc")}
+                  class="hover:bg-amber-50 p-0 rounded-xl sm:rounded-2xl w-8 sm:w-12 h-8 sm:h-12 text-slate-400 hover:text-amber-600 transition-all"
+                >
+                  {#if sortOrder === "asc"}
+                    <ArrowUp class="w-4 sm:w-6 h-4 sm:h-6" />
+                  {:else}
+                    <ArrowDown class="w-4 sm:w-6 h-4 sm:h-6" />
+                  {/if}
+                </InputGroup.Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content
+              class="bg-slate-900 shadow-xl px-3 py-1.5 rounded-lg font-bold text-white text-xs"
+            >
+              {sortOrder === "asc" ? "Sort Ascending" : "Sort Descending"}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </InputGroup.Addon>
+      </InputGroup.Root>
+    </div>
+
+    {#if filteredRecipes.length === 0}
+      <div
+        class="bg-slate-50 py-20 border-2 border-slate-200 border-dashed rounded-3xl text-center"
+      >
+        <p class="font-bold text-slate-400">No recipes match your search.</p>
+      </div>
+    {:else}
+      <div class="gap-4 sm:gap-6 grid">
+        {#each filteredRecipes as recipe (recipe.id)}
+          <div
+            class="group bg-white shadow-sm hover:shadow-xl p-4 sm:p-6 border border-slate-100 rounded-0 sm:rounded-3xl transition-all hover:-translate-y-1"
+            in:slide={{ axis: "y" }}
+          >
           <div
             class="flex md:flex-row flex-col justify-between md:items-center gap-4 sm:gap-6"
           >
@@ -213,4 +356,5 @@
       {/each}
     </div>
   {/if}
+{/if}
 </div>
