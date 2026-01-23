@@ -132,6 +132,48 @@
     lastSavedJson !== "" && lastSavedJson !== captureState(),
   );
 
+  // --- Wake Lock ---
+  let wakeLock: WakeLockSentinel | null = null;
+
+  async function requestWakeLock() {
+    if ("wakeLock" in navigator && isCookingMode) {
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        console.log("Wake Lock acquired");
+      } catch (err: any) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+      console.log("Wake Lock released");
+    }
+  }
+
+  $effect(() => {
+    if (isCookingMode) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    const handleVisibilityChange = async () => {
+      if (isCookingMode && document.visibilityState === "visible") {
+        await requestWakeLock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      releaseWakeLock();
+    };
+  });
+
   // --- Effects & Logic ---
   onMount(async () => {
     syncKey = localStorage.getItem("syncKey") || "";
@@ -735,18 +777,18 @@
     {#if view === "calculator"}
       <div class="gap-6 sm:gap-8 grid grid-cols-1 lg:grid-cols-12">
         <!-- Left: Inputs -->
-        <div class="space-y-6 lg:col-span-8" in:fade>
+        <div class="space-y-6 lg:col-span-9" in:fade>
           <div
             class="bg-white shadow-slate-200/50 shadow-xl p-4 sm:p-8 border border-slate-100 rounded-0 sm:rounded-4xl"
           >
             <div
-              class="flex md:flex-row flex-col justify-between md:items-center gap-2 mb-4 sm:mb-6 pb-6 border-slate-50 border-b"
+              class="flex lg:flex-row flex-col justify-between lg:items-center gap-6 mb-4 sm:mb-6 pb-6 border-slate-50 border-b"
             >
               <div class="flex-1 min-w-0">
                 <Field.Field class="w-full">
                   <Textarea
                     bind:value={recipeName}
-                    class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto min-h-auto overflow-hidden font-[Lilita_One] font-normal text-slate-900 placeholder:text-slate-200 text-3xl md:text-4xl tracking-tight resize-none no-scrollbar"
+                    class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto min-h-auto overflow-hidden font-[Lilita_One] font-normal text-slate-900 placeholder:text-slate-200 text-3xl md:text-5xl tracking-tight resize-none no-scrollbar"
                     placeholder="Name your creation..."
                     rows={1}
                   />
@@ -769,12 +811,12 @@
               </div>
 
               <div
-                class="flex justify-between sm:justify-end items-center gap-1 sm:gap-6"
+                class="flex sm:flex-col justify-between sm:justify-center items-center sm:items-end gap-3 sm:gap-3 shrink-0"
               >
-                <div class="flex items-center gap-1 sm:gap-2">
+                <div class="flex items-center gap-1 sm:gap-1.5">
                   <button
                     onclick={resetCalculator}
-                    class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                    class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-3 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
                     title="Reset"
                   >
                     <RotateCcw class="w-3.5 h-3.5" />
@@ -783,7 +825,7 @@
                   {#if activeRecipeId}
                     <button
                       onclick={() => saveRecipe(false, true)}
-                      class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                      class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-3 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
                       title="Save as Copy"
                     >
                       <Copy class="w-3.5 h-3.5" />
@@ -792,7 +834,7 @@
                   {/if}
                   <button
                     onclick={() => saveRecipe()}
-                    class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg p-2 sm:px-5 sm:py-2 rounded-xl font-bold text-white text-xs active:scale-95 transition"
+                    class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-white text-xs active:scale-95 transition"
                     title="Save"
                   >
                     <Save class="w-3.5 h-3.5" />
@@ -801,11 +843,11 @@
                 </div>
 
                 <div
-                  class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 border border-slate-100 rounded-2xl"
+                  class="flex items-center gap-2.5 bg-slate-50 px-3 py-1.5 border border-slate-100 rounded-2xl w-fit"
                 >
                   <Label
                     for="cook-mode"
-                    class="group/cook flex items-center gap-2.5 cursor-pointer"
+                    class="group/cook flex items-center gap-2 cursor-pointer"
                   >
                     <span
                       class="font-black text-[10px] text-slate-500 uppercase tracking-widest"
@@ -1029,7 +1071,7 @@
         </div>
 
         <!-- Right: Summary Dashboard -->
-        <div class="lg:col-span-4" in:fly={{ y: 20 }}>
+        <div class="lg:col-span-3" in:fly={{ y: 20 }}>
           <div class="top-24 sticky space-y-6">
             <BakersMaths
               {calculations}
