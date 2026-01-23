@@ -110,6 +110,7 @@
 
   // --- Derived Runes ---
   import { calculateRecipeStats } from "$lib/calculations";
+  import { generateUUID } from "$lib/utils";
   import { Textarea } from "$lib/components/ui/textarea";
 
   // --- Derived Runes ---
@@ -207,7 +208,7 @@
     // Migration: ensure all recipes have UUIDs
     for (const r of all) {
       if (!r.uuid) {
-        r.uuid = crypto.randomUUID();
+        r.uuid = generateUUID();
         await db.recipes.update(r.id!, { uuid: r.uuid });
       }
     }
@@ -401,7 +402,7 @@
       activeRecipeId && !forceNew
         ? savedRecipes.find((r) => r.id === activeRecipeId)
         : null;
-    const uuid = existingRecipe?.uuid || crypto.randomUUID();
+    const uuid = existingRecipe?.uuid || generateUUID();
 
     const recipe: Recipe = {
       uuid,

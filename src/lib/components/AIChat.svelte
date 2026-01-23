@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Sparkles, MessageSquare, Loader2, Send, Key, ExternalLink } from "lucide-svelte";
+  import { Sparkles, MessageSquare, Loader2, Send, Key, ExternalLink, Image as ImageIcon, X } from "lucide-svelte";
   import { fly, fade } from "svelte/transition";
   import { onMount } from "svelte";
   import Markdown from "svelte-exmarkdown";
-  import { getBakerAssistantResponse } from "$lib/aiService";
+  import { getBakerAssistantResponse, type ChatMessage } from "$lib/aiService";
   import type { Ingredient, RecipeStage } from "$lib/types";
   import { toast } from "svelte-sonner";
 
@@ -28,11 +28,15 @@
 
   let { recipeName, ingredients, stages, hydration, portions, isScalingEnabled, notes, onUpdateRecipe }: Props = $props();
 
-  let chatMessages = $state<{ role: "user" | "assistant"; content: string }[]>([]);
+  let chatMessages = $state<ChatMessage[]>([]);
   let userInput = $state("");
   let isAnalyzing = $state(false);
   let isEditingKey = $state(false);
   let chatContainer = $state<HTMLElement | null>(null);
+
+  // Image handling
+  let pendingImage = $state<{ data: string; mimeType: string } | null>(null);
+  let fileInput = $state<HTMLInputElement | null>(null);
 
   // API Key handling
   let apiKeyInput = $state("");
@@ -66,12 +70,38 @@
     }
   });
 
+  async function handleFileSelection(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      const base64Data = result.split(',')[1];
+      pendingImage = {
+        data: base64Data,
+        mimeType: file.type
+      };
+    };
+    reader.readAsDataURL(file);
+    target.value = '';
+  }
+
   async function sendChatMessage() {
-    if (!userInput.trim() || isAnalyzing) return;
+    if ((!userInput.trim() && !pendingImage) || isAnalyzing) return;
 
     const message = userInput.trim();
-    chatMessages.push({ role: "user", content: message });
+    const image = pendingImage ? { ...pendingImage } : undefined;
+
+    chatMessages.push({ role: "user", content: message, image });
     userInput = "";
+    pendingImage = null;
     isAnalyzing = true;
 
     try {
@@ -130,7 +160,7 @@
 </script>
 
 <div
-  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-0 sm:rounded-4xl h-full min-h-[400px]"
+  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-0 sm:rounded-4xl h-full min-h-100"
 >
   <div
     class="flex justify-between items-center bg-slate-50/50 p-4 sm:p-6 border-slate-100 border-b"
@@ -162,7 +192,10 @@
       {/if}
       {#if chatMessages.length > 0}
         <button
-          onclick={() => (chatMessages = [])}
+          onclick={() => {
+            chatMessages = [];
+            pendingImage = null;
+          }}
           class="font-black text-[10px] text-slate-400 hover:text-red-500 uppercase tracking-widest transition"
         >
           Clear
@@ -221,7 +254,7 @@
             <button
               type="submit"
               disabled={!apiKeyInput.trim() || isSavingKey}
-              class="flex-[2] bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 py-3 rounded-2xl font-bold text-white text-sm transition-all"
+              class="flex-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 py-3 rounded-2xl font-bold text-white text-sm transition-all"
             >
               {isSavingKey ? 'Saving...' : hasKey ? 'Update Key' : 'Start Baking with AI'}
             </button>
@@ -258,6 +291,15 @@
             ? 'bg-slate-900 text-white rounded-br-none shadow-lg'
             : 'bg-slate-100 text-slate-700 rounded-bl-none'}"
         >
+          {#if msg.image}
+            <div class="mb-2 max-w-full overflow-hidden">
+              <img
+                src="data:{msg.image.mimeType};base64,{msg.image.data}"
+                alt="Chat attachment"
+                class="shadow-sm rounded-lg w-auto max-h-64 sm:max-h-96 object-contain"
+              />
+            </div>
+          {/if}
           <div class="prose prose-sm prose-slate {msg.role === 'user' ? 'prose-invert' : ''}">
             <Markdown md={msg.content} />
           </div>
@@ -275,24 +317,57 @@
   </div>
 
   <div class="bg-slate-50 p-4 border-slate-100 border-t">
+    {#if pendingImage}
+      <div class="relative bg-white shadow-sm mb-3 p-1.5 border border-slate-200 rounded-2xl w-24 h-24" in:fade>
+        <img
+          src="data:{pendingImage.mimeType};base64,{pendingImage.data}"
+          alt="Pending upload"
+          class="rounded-xl w-full h-full object-cover"
+        />
+        <button
+          onclick={() => pendingImage = null}
+          class="-top-2 -right-2 absolute bg-slate-900 hover:bg-red-500 shadow-md p-1 border-2 border-white rounded-full text-white transition-colors"
+        >
+          <X class="w-3 h-3" />
+        </button>
+      </div>
+    {/if}
     <form
       onsubmit={(e) => {
         e.preventDefault();
         sendChatMessage();
       }}
-      class="relative"
+      class="flex gap-2"
     >
-      <input
-        type="text"
-        bind:value={userInput}
-        disabled={!hasKey}
-        placeholder={hasKey ? "Ask or paste a recipe..." : "Enter API key above to start"}
-        class="bg-white disabled:bg-slate-50 py-3 pr-12 pl-4 border border-slate-200 focus:border-transparent rounded-xl focus:ring-2 focus:ring-amber-500 w-full text-sm transition-all disabled:cursor-not-allowed"
-      />
+      <div class="relative flex-1">
+        <input
+          type="text"
+          bind:value={userInput}
+          disabled={!hasKey}
+          placeholder={hasKey ? (pendingImage ? "Describe this photo..." : "Ask or paste a recipe...") : "Enter API key above to start"}
+          class="bg-white disabled:bg-slate-50 shadow-sm py-3 pr-10 pl-4 border border-slate-200 focus:border-transparent rounded-xl focus:ring-2 focus:ring-amber-500 w-full text-sm transition-all disabled:cursor-not-allowed"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          bind:this={fileInput}
+          onchange={handleFileSelection}
+          class="hidden"
+        />
+        <button
+          type="button"
+          disabled={!hasKey || isAnalyzing}
+          onclick={() => fileInput?.click()}
+          class="top-1.5 right-2 absolute hover:bg-slate-100 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 transition-all"
+          title="Upload image"
+        >
+          <ImageIcon class="w-5 h-5" />
+        </button>
+      </div>
       <button
         type="submit"
-        disabled={!userInput.trim() || isAnalyzing || !hasKey}
-        class="top-1.5 right-2 absolute bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 p-1.5 rounded-lg text-white disabled:text-slate-400 transition-all"
+        disabled={(!userInput.trim() && !pendingImage) || isAnalyzing || !hasKey}
+        class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 shadow-sm px-4 rounded-xl text-white disabled:text-slate-400 transition-all"
       >
         <Send class="w-4 h-4" />
       </button>

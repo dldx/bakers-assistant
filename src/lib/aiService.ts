@@ -34,6 +34,15 @@ export interface BakerContext {
     isScalingEnabled: boolean;
 }
 
+export interface ChatMessage {
+    role: "user" | "assistant";
+    content: string;
+    image?: {
+        data: string;
+        mimeType: string;
+    };
+}
+
 const responseSchema = {
     type: Type.OBJECT,
     description: "Baking Assistant Response",
@@ -108,13 +117,13 @@ const responseSchema = {
 };
 
 export async function getBakerAssistantResponse(
-    messages: { role: "user" | "assistant"; content: string }[],
+    messages: ChatMessage[],
     context: BakerContext
 ): Promise<BakerResponse> {
     const model = "gemini-3-flash-preview";
 
     const systemInstruction = `Expert Sourdough Baker Assistant.
-    You help bakers update and refine their recipes.
+    You help bakers update and refine their recipes. You can also analyze photos of bread, crumb structure, or handwritten recipes provided in images.
 
     RESPONSE FORMAT:
     - 'advice': A friendly, concise message (max 3 sentences).
@@ -127,11 +136,12 @@ export async function getBakerAssistantResponse(
     - Each ingredient should have a 'stageId' that matches one of the stage IDs.
 
     CORE TASKS:
-    1. Parsing: For new recipes provided by the user, extract all details, group them into logical stages, and return the FULL 'recipeUpdate'. Look for protein context (e.g. "12% protein") and hydration details (e.g. "100% hydration starter").
+    1. Parsing: For new recipes provided by the user (text or image), extract all details, group them into logical stages, and return the FULL 'recipeUpdate'. Look for protein context (e.g. "12% protein") and hydration details (e.g. "100% hydration starter").
     2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients and stages in 'recipeUpdate'.
     3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2}, set 'isScalingEnabled' to true, and return the FULL recipe update.
     4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78, set 'isScalingEnabled' to true, and return the FULL recipe update.
-    5. General Advice: If user is asking a question or for advice without changing the recipe, set 'recipeUpdate' to null.
+    5. Photo Analysis: If the user provides an image, analyze it (crumb, crust, recipe) and provide expert feedback or extracted recipe.
+    6. General Advice: If user is asking a question or for advice without changing the recipe, set 'recipeUpdate' to null.
 
     INGREDIENT METADATA:
     - 'proteinContent': Only for Flour.
@@ -163,9 +173,20 @@ export async function getBakerAssistantResponse(
             text = `${m.content}\n\n[LATEST_RECIPE_CONTEXT]\n${contextStr}`;
         }
 
+        const parts: any[] = [{ text }];
+
+        if (m.image) {
+            parts.push({
+                inlineData: {
+                    mimeType: m.image.mimeType,
+                    data: m.image.data
+                }
+            });
+        }
+
         return {
             role: m.role === "user" ? "user" : "model",
-            parts: [{ text }]
+            parts
         };
     });
 
