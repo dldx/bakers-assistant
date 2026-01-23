@@ -14,6 +14,7 @@ Baker's Assistant is a specialized web application designed for sourdough bakers
 - **Shareable Recipes**: Generate base64-encoded share links to send your formulas to other bakers instantly.
 - **Cooking Mode**: A focused view to check off ingredients as you weigh them out.
 - **Real-time Analysis**: Interactive dashboard showing hydration, total weights, and ingredient percentages as you type.
+- **PWA Ready**: Installable on your phone or desktop for quick access and offline use.
 
 ## 🛠️ Technical Choices
 

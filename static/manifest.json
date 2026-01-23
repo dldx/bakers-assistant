@@ -1,0 +1,25 @@
+{
+  "name": "Baker's Assistant",
+  "short_name": "Baker",
+  "description": "Smart baking calculator for precision bakers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fdfbf7",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["lifestyle", "utilities"],
+  "orientation": "portrait-primary"
+}
