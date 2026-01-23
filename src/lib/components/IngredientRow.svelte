@@ -1,12 +1,13 @@
 <script lang="ts">
   import { Trash2, GripVertical } from "lucide-svelte";
   import { slide } from "svelte/transition";
+  import { useSortable } from "@dnd-kit-svelte/svelte/sortable";
   import { IngredientCategory, type Ingredient } from "$lib/types";
   import { CATEGORY_META } from "$lib/constants";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
-    import { Textarea } from "$lib/components/ui/textarea";
+  import { Textarea } from "$lib/components/ui/textarea";
 
   let {
     ingredient: ing,
@@ -15,6 +16,8 @@
     allIcons,
     onUpdate,
     onRemove,
+    index,
+    stageId,
   } = $props<{
     ingredient: Ingredient;
     percentage: number;
@@ -22,7 +25,19 @@
     allIcons: Record<string, any>;
     onUpdate: (id: string, updates: Partial<Ingredient>) => void;
     onRemove: (id: string) => void;
+    index: number;
+    stageId?: string;
   }>();
+
+  const { ref, handleRef, isDragging, isDropTarget } = useSortable({
+    id: () => ing.id,
+    index: () => index,
+    disabled: () => isCookingMode,
+    type: "item",
+    accept: "item",
+    group: () => `${stageId || "root"}-${ing.category}`,
+    data: () => ({ group: `${stageId || "root"}-${ing.category}` }),
+  });
 
   const meta = $derived(CATEGORY_META[ing.category as keyof typeof CATEGORY_META]);
   const Icon = $derived(allIcons[ing.category as keyof typeof allIcons]);
@@ -30,6 +45,7 @@
 </script>
 
 <div
+  {@attach ref}
   role="button"
   tabindex={isCookingMode ? 0 : -1}
   onclick={() => isCookingMode && onUpdate(ing.id, { checked: !ing.checked })}
@@ -37,12 +53,15 @@
   class="group relative flex items-center gap-2 sm:gap-3 py-1.5 {isCookingMode ? 'cursor-pointer select-none' : ''} {ing.checked &&
   isCookingMode
     ? 'opacity-40'
-    : ''}"
+    : ''} {isDragging.current ? 'opacity-0 pointer-events-none' : ''} {isDropTarget.current ? 'bg-amber-50/50 rounded-xl' : ''}"
   transition:slide={{ axis: "y" }}
 >
   <!-- Drag Handle Indicator -->
   {#if !isCookingMode}
-    <div class="flex items-center opacity-0 group-hover:opacity-100 h-10 text-slate-300 transition-opacity cursor-grab active:cursor-grabbing">
+    <div
+      {@attach handleRef}
+      class="flex items-center opacity-0 group-hover:opacity-100 h-10 text-slate-300 transition-opacity cursor-grab active:cursor-grabbing"
+    >
       <GripVertical class="w-3 sm:w-4 h-3 sm:h-4" />
     </div>
   {/if}

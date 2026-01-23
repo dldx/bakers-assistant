@@ -38,6 +38,13 @@
   import { Label } from "$lib/components/ui/label";
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
+  import {
+    DragDropProvider,
+    KeyboardSensor,
+    PointerSensor,
+    DragOverlay,
+  } from "@dnd-kit-svelte/svelte";
+
   import { SyncService } from "$lib/syncService";
   import { exportVault, importVault } from "$lib/vaultService";
 
@@ -86,6 +93,20 @@
 
   let syncKey = $state("");
   let syncService = $state<SyncService | null>(null);
+
+  // --- DnD State ---
+  const sensors = [PointerSensor, KeyboardSensor];
+  let activeId = $state<string | null>(null);
+  let originalCategory = $state<IngredientCategory | null>(null);
+  const activeItem = $derived(ingredients.find((i) => i.id === activeId));
+
+  function handleGlobalDragStart(event: any) {
+    if (event.operation.source.type === "item") {
+      activeId = event.operation.source.id;
+      originalCategory =
+        ingredients.find((i) => i.id === activeId)?.category ?? null;
+    }
+  }
 
   // --- Derived Runes ---
   import { calculateRecipeStats } from "$lib/calculations";
@@ -229,45 +250,74 @@
     ingredients = ingredients.filter((i) => i.id !== id);
   }
 
-  function handleDnd(
-    category: IngredientCategory,
-    stageId: string | undefined,
-    newBucketItems: Ingredient[],
-  ) {
-    // 1. Update items in this bucket to the correct category/stage
-    const updated = newBucketItems.map((item) => ({
-      ...item,
-      category,
-      stageId,
-    }));
+  function handleGlobalDragOver(event: any) {
+    const { operation } = event;
+    const { source, target } = operation;
+    if (!target || source.id === target.id) return;
+    if (source.type === "column") return;
 
-    // 2. IDs of items that WERE in this bucket or ARE NOW in this bucket
-    const currentBucketItems = ingredients.filter(
-      (ing) => ing.category === category && ing.stageId === stageId,
-    );
-    const currentIds = new Set(currentBucketItems.map((i) => i.id));
-    const newIds = new Set(updated.map((i) => i.id));
-    const allAffectedIds = new Set([...currentIds, ...newIds]);
+    const sourceGroup = source.data?.group;
+    const targetGroup = target.data?.group || target.id;
 
-    // 3. Find insertion index (where the bucket starts)
-    let insertionIndex = ingredients.findIndex((ing) => currentIds.has(ing.id));
-    if (insertionIndex === -1) {
-      // If bucket was empty, put it at the end of its stage or at the end of the list
-      const stageItems = ingredients.filter((ing) => ing.stageId === stageId);
-      if (stageItems.length > 0) {
-        const lastItem = stageItems[stageItems.length - 1];
-        insertionIndex = ingredients.indexOf(lastItem) + 1;
+    if (sourceGroup !== targetGroup) {
+      const sourceIndex = ingredients.findIndex((i) => i.id === source.id);
+      const draggingIng = ingredients[sourceIndex];
+      if (!draggingIng) return;
+
+      const parts = String(targetGroup).split("-");
+      const cat = parts.pop() as IngredientCategory;
+      const sId = parts.join("-");
+      const newCategory = cat;
+      const newStageId = sId === "root" ? undefined : sId;
+
+      const updatedIng = {
+        ...draggingIng,
+        category: newCategory,
+        stageId: newStageId,
+      };
+
+      const nextIngredients = [...ingredients];
+      nextIngredients.splice(sourceIndex, 1);
+
+      let targetIndex: number;
+      if (target.type === "item") {
+        targetIndex = nextIngredients.findIndex((i) => i.id === target.id);
       } else {
-        insertionIndex = ingredients.length;
+        const bucketItems = nextIngredients.filter(
+          (i) => i.category === newCategory && i.stageId === newStageId,
+        );
+        if (bucketItems.length > 0) {
+          targetIndex =
+            nextIngredients.indexOf(bucketItems[bucketItems.length - 1]) + 1;
+        } else {
+          targetIndex = nextIngredients.length;
+        }
+      }
+
+      if (targetIndex !== -1) {
+        nextIngredients.splice(targetIndex, 0, updatedIng);
+        ingredients = nextIngredients;
       }
     }
+  }
 
-    // 4. Remove all affected items and splice in the updated ones
-    const remaining = ingredients.filter((ing) => !allAffectedIds.has(ing.id));
-    const next = [...remaining];
-    next.splice(insertionIndex, 0, ...updated);
+  function handleGlobalDragEnd(event: any) {
+    activeId = null;
+    originalCategory = null;
+    const { operation } = event;
+    const { source, target } = operation;
+    if (!target || source.id === target.id) return;
+    if (source.type === "column") return;
 
-    ingredients = next;
+    const sourceIndex = ingredients.findIndex((i) => i.id === source.id);
+    const targetIndex = ingredients.findIndex((i) => i.id === target.id);
+
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      const next = [...ingredients];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      ingredients = next;
+    }
   }
 
   function scaleByYield(newPortions: number) {
@@ -342,14 +392,16 @@
   }
 
   async function saveRecipe(silent = false, forceNew = false) {
-    const existingRecipe = (activeRecipeId && !forceNew)
-      ? savedRecipes.find((r) => r.id === activeRecipeId)
-      : null;
+    const existingRecipe =
+      activeRecipeId && !forceNew
+        ? savedRecipes.find((r) => r.id === activeRecipeId)
+        : null;
     const uuid = existingRecipe?.uuid || crypto.randomUUID();
 
     const recipe: Recipe = {
       uuid,
-      name: (forceNew ? `${recipeName} (Copy)` : recipeName) || "Untitled Recipe",
+      name:
+        (forceNew ? `${recipeName} (Copy)` : recipeName) || "Untitled Recipe",
       ingredients: $state.snapshot(ingredients),
       stages: $state.snapshot(stages),
       portions,
@@ -375,7 +427,8 @@
       syncService.sendSave(recipe);
     }
 
-    if (!silent) toast.success(forceNew ? "Saved as new copy!" : "Recipe saved to vault!");
+    if (!silent)
+      toast.success(forceNew ? "Saved as new copy!" : "Recipe saved to vault!");
   }
 
   function loadRecipe(recipe: Recipe, updateHash = true) {
@@ -634,7 +687,10 @@
           <h1
             class="font-black text-slate-900 text-lg sm:text-xl leading-none tracking-tight"
           >
-            Baker's<span class="text-amber-600 decoration-amber-200 underline underline-offset-4">Assistant</span>
+            Baker's<span
+              class="text-amber-600 decoration-amber-200 underline underline-offset-4"
+              >Assistant</span
+            >
           </h1>
         </div>
       </button>
@@ -659,7 +715,9 @@
             : 'text-slate-500 hover:text-slate-800'}"
         >
           Vault
-          <span class="hidden sm:inline bg-slate-200/50 opacity-70 px-1.5 py-0.5 rounded-md text-[10px]">
+          <span
+            class="hidden sm:inline bg-slate-200/50 opacity-70 px-1.5 py-0.5 rounded-md text-[10px]"
+          >
             {savedRecipes.length}
           </span>
         </button>
@@ -689,18 +747,24 @@
                 </Field.Field>
                 <div class="flex items-center gap-2">
                   {#if isDirty}
-                    <span class="bg-amber-100 px-2 py-0.5 rounded-full font-bold text-[9px] text-amber-700 uppercase tracking-wider animate-pulse">
+                    <span
+                      class="bg-amber-100 px-2 py-0.5 rounded-full font-bold text-[9px] text-amber-700 uppercase tracking-wider animate-pulse"
+                    >
                       Unsaved Changes
                     </span>
                   {:else}
-                    <span class="font-bold text-[9px] text-slate-400 uppercase tracking-widest">
+                    <span
+                      class="font-bold text-[9px] text-slate-400 uppercase tracking-widest"
+                    >
                       &#10003; All Changes Saved
                     </span>
                   {/if}
                 </div>
               </div>
 
-              <div class="flex justify-between sm:justify-end items-center gap-1 sm:gap-6">
+              <div
+                class="flex justify-between sm:justify-end items-center gap-1 sm:gap-6"
+              >
                 <div class="flex items-center gap-1 sm:gap-2">
                   <button
                     onclick={resetCalculator}
@@ -708,7 +772,7 @@
                     title="Reset"
                   >
                     <RotateCcw class="w-3.5 h-3.5" />
-                    <span >Reset</span>
+                    <span>Reset</span>
                   </button>
                   {#if activeRecipeId}
                     <button
@@ -730,7 +794,9 @@
                   </button>
                 </div>
 
-                <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 border border-slate-100 rounded-2xl">
+                <div
+                  class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 border border-slate-100 rounded-2xl"
+                >
                   <Label
                     for="cook-mode"
                     class="group/cook flex items-center gap-2.5 cursor-pointer"
@@ -738,7 +804,9 @@
                     <span
                       class="font-black text-[10px] text-slate-500 uppercase tracking-widest"
                     >
-                      <ChefHat class="inline-block mr-1 w-3.5 h-3.5 text-amber-600" />
+                      <ChefHat
+                        class="inline-block mr-1 w-3.5 h-3.5 text-amber-600"
+                      />
                       Cook
                     </span>
                   </Label>
@@ -747,167 +815,210 @@
               </div>
             </div>
 
-            <div class="space-y-12">
-              {#if stages.length === 0}
-                <div class="space-y-10">
-                  {#each Object.values(IngredientCategory) as cat}
-                    <IngredientBucket
-                      category={cat}
-                      ingredients={ingredients.filter(
-                        (ing) => ing.category === cat,
-                      )}
-                      percentages={calculations.ingredientPercentages}
-                      icon={CATEGORY_ICONS[cat]}
-                      allIcons={CATEGORY_ICONS}
-                      {isCookingMode}
-                      onUpdate={updateIngredient}
-                      onRemove={removeIngredient}
-                      onAdd={() => addIngredient(cat)}
-                      onDnd={(items) => handleDnd(cat, undefined, items)}
-                    />
-                  {/each}
-                </div>
-              {:else}
-                {#each stages as stage (stage.id)}
-                  <div
-                    class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl"
-                    transition:slide
-                  >
-                    <div class="flex justify-between items-center mb-8">
-                      <div class="flex items-center gap-3">
-                        <div class="bg-slate-100 p-2 rounded-xl">
-                          <Puzzle class="w-4 h-4 text-slate-500" />
-                        </div>
-                        <Field.Field>
-                          <Textarea
-                            rows={1}
-                            bind:value={stage.name}
-                            class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
-                            placeholder="Stage Name"
-                          />
-                        </Field.Field>
-                      </div>
-                      <button
-                        onclick={() => removeStage(stage.id)}
-                        disabled={isCookingMode}
-                        class="disabled:hidden hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 class="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div class="space-y-6">
-                      {#each Object.values(IngredientCategory) as cat}
-                        {@const stageIngs = ingredients.filter(
-                          (ing) =>
-                            ing.category === cat && ing.stageId === stage.id,
-                        )}
-                        {#if stageIngs.length > 0}
-                          <IngredientBucket
-                            category={cat}
-                            ingredients={stageIngs}
-                            percentages={calculations.ingredientPercentages}
-                            icon={CATEGORY_ICONS[cat]}
-                            allIcons={CATEGORY_ICONS}
-                            {isCookingMode}
-                            onUpdate={updateIngredient}
-                            onRemove={removeIngredient}
-                            onAdd={() => addIngredient(cat, stage.id)}
-                            onDnd={(items) => handleDnd(cat, stage.id, items)}
-                          />
-                        {/if}
-                      {/each}
-
-                      {#if !isCookingMode}
-                        <div
-                          class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
-                        >
-                          {#each Object.entries(CATEGORY_META) as [cat, meta]}
-                            <button
-                              onclick={() =>
-                                addIngredient(
-                                  cat as IngredientCategory,
-                                  stage.id,
-                                )}
-                              class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
-                            >
-                              <Plus class="w-3 h-3" />
-                              {meta.label}
-                            </button>
-                          {/each}
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-
-                <!-- Ungrouped ingredients if any -->
-                {@const ungrouped = ingredients.filter((ing) => !ing.stageId)}
-                {#if ungrouped.length > 0}
-                  <div
-                    class="bg-slate-50/50 p-6 sm:p-8 border border-slate-200 border-dashed rounded-3xl"
-                  >
-                    <h3
-                      class="mb-6 font-black text-slate-400 text-xs uppercase tracking-[0.2em]"
-                    >
-                      General Ingredients
-                    </h3>
-                    <div class="space-y-10">
-                      {#each Object.values(IngredientCategory) as cat}
-                        {@const catIngs = ungrouped.filter(
+            <DragDropProvider
+              {sensors}
+              onDragStart={handleGlobalDragStart}
+              onDragEnd={handleGlobalDragEnd}
+              onDragOver={handleGlobalDragOver}
+            >
+              <div class="space-y-12">
+                {#if stages.length === 0}
+                  <div class="space-y-10">
+                    {#each Object.values(IngredientCategory) as cat, idx}
+                      <IngredientBucket
+                        category={cat}
+                        index={idx}
+                        ingredients={ingredients.filter(
                           (ing) => ing.category === cat,
                         )}
-                        {#if catIngs.length > 0}
-                          <IngredientBucket
-                            category={cat}
-                            ingredients={catIngs}
-                            percentages={calculations.ingredientPercentages}
-                            icon={CATEGORY_ICONS[cat]}
-                            allIcons={CATEGORY_ICONS}
-                            {isCookingMode}
-                            onUpdate={updateIngredient}
-                            onRemove={removeIngredient}
-                            onAdd={() => addIngredient(cat)}
-                            onDnd={(items) => handleDnd(cat, undefined, items)}
-                          />
-                        {/if}
-                      {/each}
-
-                      {#if !isCookingMode}
-                        <div
-                          class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
-                        >
-                          {#each Object.entries(CATEGORY_META) as [cat, meta]}
-                            <button
-                              onclick={() =>
-                                addIngredient(cat as IngredientCategory)}
-                              class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
-                            >
-                              <Plus class="w-3 h-3" />
-                              {meta.label}
-                            </button>
-                          {/each}
+                        percentages={calculations.ingredientPercentages}
+                        icon={CATEGORY_ICONS[cat]}
+                        allIcons={CATEGORY_ICONS}
+                        {isCookingMode}
+                        onUpdate={updateIngredient}
+                        onRemove={removeIngredient}
+                        onAdd={() => addIngredient(cat)}
+                      />
+                    {/each}
+                  </div>
+                {:else}
+                  {#each stages as stage, sIdx (stage.id)}
+                    <div
+                      class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl"
+                      transition:slide
+                    >
+                      <div class="flex justify-between items-center mb-8">
+                        <div class="flex items-center gap-3">
+                          <div class="bg-slate-100 p-2 rounded-xl">
+                            <Puzzle class="w-4 h-4 text-slate-500" />
+                          </div>
+                          <Field.Field>
+                            <Textarea
+                              rows={1}
+                              bind:value={stage.name}
+                              class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
+                              placeholder="Stage Name"
+                            />
+                          </Field.Field>
                         </div>
-                      {/if}
+                        <button
+                          onclick={() => removeStage(stage.id)}
+                          disabled={isCookingMode}
+                          class="disabled:hidden hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 class="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div class="space-y-6">
+                        {#each Object.values(IngredientCategory) as cat, cIdx}
+                          {@const stageIngs = ingredients.filter(
+                            (ing) =>
+                              ing.category === cat && ing.stageId === stage.id,
+                          )}
+                          {#if stageIngs.length > 0 || (activeId && !isCookingMode)}
+                            <IngredientBucket
+                              category={cat}
+                              index={sIdx * 100 + cIdx}
+                              ingredients={stageIngs}
+                              percentages={calculations.ingredientPercentages}
+                              icon={CATEGORY_ICONS[cat]}
+                              allIcons={CATEGORY_ICONS}
+                              {isCookingMode}
+                              stageId={stage.id}
+                              onUpdate={updateIngredient}
+                              onRemove={removeIngredient}
+                              onAdd={() => addIngredient(cat, stage.id)}
+                            />
+                          {/if}
+                        {/each}
+
+                        {#if !isCookingMode}
+                          <div
+                            class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
+                          >
+                            {#each Object.entries(CATEGORY_META) as [cat, meta]}
+                              <button
+                                onclick={() =>
+                                  addIngredient(
+                                    cat as IngredientCategory,
+                                    stage.id,
+                                  )}
+                                class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
+                              >
+                                <Plus class="w-3 h-3" />
+                                {meta.label}
+                              </button>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+
+                  <!-- Ungrouped ingredients if any -->
+                  {@const ungrouped = ingredients.filter((ing) => !ing.stageId)}
+                  {#if ungrouped.length > 0}
+                    <div
+                      class="bg-slate-50/50 p-6 sm:p-8 border border-slate-200 border-dashed rounded-3xl"
+                    >
+                      <h3
+                        class="mb-6 font-black text-slate-400 text-xs uppercase tracking-[0.2em]"
+                      >
+                        General Ingredients
+                      </h3>
+                      <div class="space-y-10">
+                        {#each Object.values(IngredientCategory) as cat, gIdx}
+                          {@const catIngs = ungrouped.filter(
+                            (ing) => ing.category === cat,
+                          )}
+                          {#if catIngs.length > 0}
+                            <IngredientBucket
+                              category={cat}
+                              index={1000 + gIdx}
+                              ingredients={catIngs}
+                              percentages={calculations.ingredientPercentages}
+                              icon={CATEGORY_ICONS[cat]}
+                              allIcons={CATEGORY_ICONS}
+                              {isCookingMode}
+                              onUpdate={updateIngredient}
+                              onRemove={removeIngredient}
+                              onAdd={() => addIngredient(cat)}
+                            />
+                          {/if}
+                        {/each}
+
+                        {#if !isCookingMode}
+                          <div
+                            class="flex flex-wrap gap-2 pt-4 border-slate-100 border-t"
+                          >
+                            {#each Object.entries(CATEGORY_META) as [cat, meta]}
+                              <button
+                                onclick={() =>
+                                  addIngredient(cat as IngredientCategory)}
+                                class="flex items-center gap-1.5 hover:bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-500 uppercase tracking-wider transition-colors"
+                              >
+                                <Plus class="w-3 h-3" />
+                                {meta.label}
+                              </button>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                  {/if}
+                {/if}
+
+                {#if !isCookingMode}
+                  <button
+                    onclick={addStage}
+                    class="flex justify-center items-center gap-2 hover:bg-slate-100 hover:shadow-sm py-4 border-2 border-slate-200 border-dashed rounded-3xl w-full font-bold text-slate-400 hover:text-slate-600 transition-all"
+                  >
+                    <Plus class="w-5 h-5" />
+                    Add Recipe Stage (e.g. Levain, Main Dough, Toppings)
+                  </button>
+                {/if}
+              </div>
+
+              <DragOverlay>
+                {#if activeItem}
+                  {@const CatIcon = CATEGORY_ICONS[activeItem.category]}
+                  <div
+                    class="flex items-center gap-3 bg-white dark:bg-zinc-800 opacity-90 shadow-2xl px-4 py-2 border-2 border-amber-500 rounded-xl ring-4 ring-amber-500/20 cursor-grabbing"
+                  >
+                    <div
+                      class="flex justify-center items-center bg-amber-50 rounded-lg w-8 h-8 text-amber-600"
+                    >
+                      <CatIcon class="w-5 h-5 {CATEGORY_META[activeItem.category].iconColor}" />
+                    </div>
+                    <div>
+                      <div
+                        class="font-black text-[10px] text-amber-500/80 uppercase tracking-wider"
+                      >
+                        {#if originalCategory && originalCategory !== activeItem.category}
+                          <span class="opacity-50 line-through"
+                            >{CATEGORY_META[originalCategory].label}</span
+                          >
+                          <span class="mx-1">→</span>
+                          <span class="text-amber-600"
+                            >{CATEGORY_META[activeItem.category].label}</span
+                          >
+                        {:else}
+                          Dragging
+                        {/if}
+                      </div>
+                      <div
+                        class="font-bold text-slate-900 dark:text-zinc-100 italic"
+                      >
+                        {activeItem.name}
+                      </div>
                     </div>
                   </div>
                 {/if}
-              {/if}
-
-              {#if !isCookingMode}
-                <button
-                  onclick={addStage}
-                  class="flex justify-center items-center gap-2 hover:bg-slate-100 hover:shadow-sm py-4 border-2 border-slate-200 border-dashed rounded-3xl w-full font-bold text-slate-400 hover:text-slate-600 transition-all"
-                >
-                  <Plus class="w-5 h-5" />
-                  Add Recipe Stage (e.g. Levain, Main Dough, Toppings)
-                </button>
-              {/if}
-            </div>
+              </DragOverlay>
+            </DragDropProvider>
 
             <NotesEditor bind:notes />
-
-
           </div>
         </div>
 

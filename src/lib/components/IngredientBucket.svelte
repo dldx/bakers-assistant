@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Plus, GripVertical } from "lucide-svelte";
+  import { Plus } from "lucide-svelte";
   import { fade } from "svelte/transition";
-  import { dndzone } from "svelte-dnd-action";
+  import { useSortable } from "@dnd-kit-svelte/svelte/sortable";
   import { IngredientCategory, type Ingredient } from "$lib/types";
   import { CATEGORY_META } from "$lib/constants";
   import IngredientRow from "./IngredientRow.svelte";
@@ -13,10 +13,11 @@
     icon: Icon,
     allIcons,
     isCookingMode = false,
+    stageId,
+    index,
     onUpdate,
     onRemove,
     onAdd,
-    onDnd,
   } = $props<{
     category: IngredientCategory;
     ingredients: Ingredient[];
@@ -24,14 +25,23 @@
     icon: any;
     allIcons: Record<string, any>;
     isCookingMode?: boolean;
+    stageId?: string;
+    index: number;
     onUpdate: (id: string, updates: Partial<Ingredient>) => void;
     onRemove: (id: string) => void;
     onAdd: () => void;
-    onDnd: (items: Ingredient[]) => void;
   }>();
 
   const meta = $derived(CATEGORY_META[category as keyof typeof CATEGORY_META]);
-  const flipDurationMs = 200;
+  const groupId = $derived(`${stageId || "root"}-${category}`);
+
+  const { ref, isDropTarget } = useSortable({
+    id: () => groupId,
+    index: () => index,
+    type: "column",
+    accept: ["item", "column"],
+    data: () => ({ group: groupId }),
+  });
 </script>
 
 <div class="space-y-4">
@@ -56,16 +66,10 @@
   </div>
 
   <div
-    class="space-y-3 min-h-10"
-    use:dndzone={{
-      items: ingredients,
-      flipDurationMs,
-      dropTargetStyle: {},
-      type: "ingredient",
-      dragDisabled: isCookingMode,
-    }}
-    onconsider={(e) => onDnd(e.detail.items)}
-    onfinalize={(e) => onDnd(e.detail.items)}
+    {@attach ref}
+    class="space-y-3 min-h-10 rounded-xl transition-colors {isDropTarget.current
+      ? 'bg-amber-50/50'
+      : ''}"
   >
     {#if ingredients.length === 0}
       <p
@@ -75,11 +79,13 @@
         No {meta.label.toLowerCase()} added yet...
       </p>
     {:else}
-      {#each ingredients as ing (ing.id)}
+      {#each ingredients as ing, index (ing.id)}
         <div class="outline-none">
           <IngredientRow
             ingredient={ing}
             percentage={percentages[ing.id]}
+            {index}
+            {stageId}
             {isCookingMode}
             {allIcons}
             {onUpdate}
