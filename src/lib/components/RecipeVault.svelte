@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, slide } from "svelte/transition";
-  import { Plus, PenLine, Copy, Trash2, BookOpen, Download, Upload, Dices } from "lucide-svelte";
+  import { Plus, PenLine, Copy, Trash2, BookOpen, Download, Upload, Dices, Share2 } from "lucide-svelte";
   import type { Recipe } from "$lib/types";
   import { calculateRecipeStats } from "$lib/calculations";
   import { GlassWater, Zap, Save } from "lucide-svelte";
@@ -11,6 +11,7 @@
     onLoadRecipe,
     onRemixRecipe,
     onDeleteRecipe,
+    onShareRecipe,
     onStartNewRecipe,
     onUpdateSyncKey,
     onExportVault,
@@ -21,6 +22,7 @@
     onLoadRecipe: (recipe: Recipe) => void;
     onRemixRecipe: (recipe: Recipe) => void;
     onDeleteRecipe: (id: number) => void;
+    onShareRecipe: (recipe: Recipe) => void;
     onStartNewRecipe: () => void;
     onUpdateSyncKey: (key: string) => void;
     onExportVault: () => void;
@@ -180,8 +182,16 @@
                 <span>Remix</span>
               </button>
               <button
+                onclick={() => onShareRecipe(recipe)}
+                class="p-2 text-slate-200 hover:text-sky-500 transition-colors"
+                title="Share link"
+              >
+                <Share2 class="w-5 h-5" />
+              </button>
+              <button
                 onclick={() => recipe.id && onDeleteRecipe(recipe.id)}
                 class="p-2 text-slate-200 hover:text-red-500 transition-colors"
+                title="Delete recipe"
               >
                 <Trash2 class="w-5 h-5" />
               </button>

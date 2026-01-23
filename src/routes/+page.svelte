@@ -6,6 +6,7 @@
     Save,
     RotateCcw,
     Trash2,
+    Copy,
     Croissant,
     Puzzle,
     Wheat,
@@ -124,7 +125,9 @@
 
   async function handleHashChange() {
     const hash = window.location.hash.substring(1);
-    if (hash && hash.startsWith("recipe/")) {
+    if (!hash) return;
+
+    if (hash.startsWith("recipe/")) {
       const uuid = hash.replace("recipe/", "");
       if (
         activeRecipeId &&
@@ -135,6 +138,28 @@
       const recipe = await db.recipes.where("uuid").equals(uuid).first();
       if (recipe) {
         loadRecipe(recipe);
+      }
+    } else if (hash.startsWith("share/")) {
+      try {
+        const base64 = hash.replace("share/", "");
+        const json = decodeURIComponent(
+          Array.from(atob(base64))
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join(""),
+        );
+        const recipe = JSON.parse(json) as Recipe;
+
+        // When opening a shared recipe, we load it but treat it as a new one
+        // so they can save it to their own vault if they want.
+        loadRecipe(recipe, false);
+        toast.info(`Loaded shared recipe: ${recipe.name}`);
+
+        // Clear hash and mark as unsaved so they can save it to THEIR vault
+        window.history.replaceState(null, "", window.location.pathname);
+        activeRecipeId = null;
+      } catch (e) {
+        console.error("Failed to decode shared recipe", e);
+        toast.error("Invalid share link.");
       }
     }
   }
@@ -304,15 +329,15 @@
     }
   }
 
-  async function saveRecipe(silent = false) {
-    const existingRecipe = activeRecipeId
+  async function saveRecipe(silent = false, forceNew = false) {
+    const existingRecipe = (activeRecipeId && !forceNew)
       ? savedRecipes.find((r) => r.id === activeRecipeId)
       : null;
     const uuid = existingRecipe?.uuid || crypto.randomUUID();
 
     const recipe: Recipe = {
       uuid,
-      name: recipeName || "Untitled Recipe",
+      name: (forceNew ? `${recipeName} (Copy)` : recipeName) || "Untitled Recipe",
       ingredients: $state.snapshot(ingredients),
       stages: $state.snapshot(stages),
       portions,
@@ -321,14 +346,16 @@
       updatedAt: Date.now(),
     };
 
-    if (activeRecipeId) {
+    if (activeRecipeId && !forceNew) {
       await db.recipes.update(activeRecipeId, recipe as any);
     } else {
       const id = await db.recipes.add(recipe);
       activeRecipeId = id as number;
     }
 
-    window.location.hash = `recipe/${uuid}`;
+    if (recipe.uuid) {
+      window.location.hash = `recipe/${recipe.uuid}`;
+    }
     await refreshVault();
     lastSavedJson = captureState();
 
@@ -336,10 +363,10 @@
       syncService.sendSave(recipe);
     }
 
-    if (!silent) toast.success("Recipe saved to vault!");
+    if (!silent) toast.success(forceNew ? "Saved as new copy!" : "Recipe saved to vault!");
   }
 
-  function loadRecipe(recipe: Recipe) {
+  function loadRecipe(recipe: Recipe, updateHash = true) {
     // Migration for legacy recipes: Apply top-level hydration to starters if missing
     const legacyHydration = (recipe as any).starterHydration ?? 100;
     const loadedIngredients = JSON.parse(JSON.stringify(recipe.ingredients));
@@ -365,14 +392,32 @@
     activeRecipeId = recipe.id ?? null;
     view = "calculator";
 
-    if (recipe.uuid) {
+    if (updateHash && recipe.uuid) {
       window.location.hash = `recipe/${recipe.uuid}`;
     }
     lastSavedJson = captureState();
   }
 
+  function shareRecipe(recipe: Recipe) {
+    try {
+      const json = JSON.stringify($state.snapshot(recipe));
+      const base64 = btoa(
+        encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) =>
+          String.fromCharCode(parseInt(p1, 16)),
+        ),
+      );
+      const url = `${window.location.origin}${window.location.pathname}#share/${base64}`;
+
+      navigator.clipboard.writeText(url);
+      toast.success("Share link copied to clipboard!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate share link.");
+    }
+  }
+
   async function remixRecipe(recipe: Recipe) {
-    loadRecipe(recipe);
+    loadRecipe(recipe, false);
     recipeName += " (Remix)";
     activeRecipeId = null;
     await saveRecipe(true);
@@ -646,6 +691,16 @@
                     <RotateCcw class="w-3.5 h-3.5" />
                     <span >Reset</span>
                   </button>
+                  {#if activeRecipeId}
+                    <button
+                      onclick={() => saveRecipe(false, true)}
+                      class="flex items-center gap-2 hover:bg-slate-100 p-2 sm:px-4 sm:py-2 rounded-xl font-bold text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                      title="Save as Copy"
+                    >
+                      <Copy class="w-3.5 h-3.5" />
+                      <span class="hidden sm:inline">Save As</span>
+                    </button>
+                  {/if}
                   <button
                     onclick={() => saveRecipe()}
                     class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg p-2 sm:px-5 sm:py-2 rounded-xl font-bold text-white text-xs active:scale-95 transition"
@@ -872,6 +927,7 @@
         onLoadRecipe={loadRecipe}
         onRemixRecipe={remixRecipe}
         onDeleteRecipe={deleteRecipe}
+        onShareRecipe={shareRecipe}
         onStartNewRecipe={startNewRecipe}
         onUpdateSyncKey={updateSyncKey}
         onExportVault={handleExportVault}

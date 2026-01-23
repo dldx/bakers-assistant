@@ -17,7 +17,7 @@
     notes: string;
     onUpdateRecipe: (data: {
       recipeName?: string;
-      ingredients?: any[];
+      ingredients?: Ingredient[];
       stages?: RecipeStage[];
       portions?: number;
       isScalingEnabled?: boolean;
@@ -187,14 +187,14 @@
           <h4 class="font-black text-slate-900 text-lg uppercase tracking-tight">
             {hasKey ? 'Update Gemini API Key' : 'Gemini API Key Required'}
           </h4>
-          <p class="mt-2 max-w-[280px] font-medium text-slate-500 text-sm leading-relaxed">
+          <p class="mt-2 max-w-70 font-medium text-slate-500 text-sm leading-relaxed">
             To use the AI assistant, you need a Gemini API key. Your key is stored locally in your browser.
           </p>
         </div>
 
         <form
           onsubmit={(e) => { e.preventDefault(); saveApiKey(); }}
-          class="flex flex-col gap-3 w-full max-w-[300px]"
+          class="flex flex-col gap-3 w-full max-w-75"
         >
           <input
             type="password"
