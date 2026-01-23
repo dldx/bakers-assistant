@@ -30,7 +30,7 @@
 </script>
 
 <div
-  class="group relative flex items-center gap-2 sm:gap-3 pt-3 {ing.checked &&
+  class="group relative flex items-center gap-2 sm:gap-3 py-1.5 {ing.checked &&
   isCookingMode
     ? 'opacity-40'
     : ''}"
@@ -45,7 +45,7 @@
 
   <!-- Cooking Mode: Checkbox -->
   {#if isCookingMode}
-    <div class="flex items-center h-10">
+    <div class="flex items-center">
       <Checkbox
         checked={ing.checked}
         onCheckedChange={(v) => onUpdate(ing.id, { checked: v })}
@@ -108,8 +108,8 @@
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
       class="resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-10 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
       isCookingMode
-        ? 'line-through decoration-2 decoration-slate-400 font-bold border-0 bg-transparent shadow-none' :
-        isCookingMode ? 'font-bold border-0 bg-transparent shadow-none'
+        ? 'line-through decoration-2 decoration-slate-400 font-bold border-0 bg-transparent shadow-none min-h-0 py-1' :
+        isCookingMode ? 'font-bold border-0 bg-transparent shadow-none min-h-0 py-1'
         : 'font-medium'}"
       style="transition: text-decoration 0.3s ease;"
     />
@@ -236,7 +236,7 @@
           onUpdate(ing.id, {
             weight: Number((e.target as HTMLInputElement).value),
           })}
-        class="bg-transparent disabled:opacity-100 number-input-no-spin h-10 border-none w-[5ch] sm:w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
+        class="bg-transparent disabled:opacity-100 number-input-no-spin {isCookingMode ? 'h-auto py-1' : 'h-10'} border-none w-[5ch] sm:w-[6ch] p-0 font-black text-slate-700 text-xs sm:text-base text-right shadow-none {ing.checked &&
         isCookingMode
           ? 'line-through decoration-2 decoration-slate-400'
           : ''}"
