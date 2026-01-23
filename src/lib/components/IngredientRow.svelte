@@ -6,6 +6,7 @@
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
+    import { Textarea } from "$lib/components/ui/textarea";
 
   let {
     ingredient: ing,
@@ -98,14 +99,14 @@
   {/if}
 
   <Field.Field class="min-w-30 grow">
-    <Input
-      type="text"
+    <Textarea
+      rows={1}
       placeholder={meta.placeholder}
       bind:value={ing.name}
       disabled={isCookingMode}
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
-      class="grow bg-slate-50/50 disabled:opacity-100  focus:bg-white h-10 px-3 border-slate-100 focus:border-amber-500 rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-sm transition-all text-black {ing.checked &&
+      class="resize-none grow bg-slate-50/50 disabled:opacity-100  focus:bg-white min-h-auto px-3 border-slate-100 focus:border-amber-500 rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-sm transition-all text-black {ing.checked &&
       isCookingMode
         ? 'line-through decoration-2 decoration-slate-400 font-bold  border-0 bg-transparent shadow-none' :
         isCookingMode ? ' font-bold border-0 bg-transparent shadow-none'

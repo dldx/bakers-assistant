@@ -13,18 +13,20 @@
     stages: RecipeStage[];
     hydration: number;
     portions: number;
+    isScalingEnabled: boolean;
     notes: string;
     onUpdateRecipe: (data: {
       recipeName?: string;
       ingredients?: any[];
       stages?: RecipeStage[];
       portions?: number;
+      isScalingEnabled?: boolean;
       targetHydration?: number;
       notes?: string;
     }) => void;
   }
 
-  let { recipeName, ingredients, stages, hydration, portions, notes, onUpdateRecipe }: Props = $props();
+  let { recipeName, ingredients, stages, hydration, portions, isScalingEnabled, notes, onUpdateRecipe }: Props = $props();
 
   let chatMessages = $state<{ role: "user" | "assistant"; content: string }[]>([]);
   let userInput = $state("");
@@ -80,6 +82,7 @@
         hydration,
         portions,
         notes,
+        isScalingEnabled,
       });
 
       console.log("AI Response:", response);

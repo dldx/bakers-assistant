@@ -439,6 +439,10 @@
     if (data.notes) notes = data.notes;
     if (data.stages) stages = data.stages;
 
+    if (data.isScalingEnabled !== undefined) {
+      isScalingEnabled = data.isScalingEnabled;
+    }
+
     if (data.ingredients) {
       ingredients = data.ingredients.map((ing: any) => ({
         id: ing.id || Math.random().toString(36).substr(2, 9),
@@ -608,31 +612,31 @@
             class="bg-white shadow-slate-200/50 shadow-xl p-4 sm:p-8 border border-slate-100 rounded-0 sm:rounded-4xl"
           >
             <div
-              class="flex md:flex-row flex-col justify-between md:items-center gap-6 mb-8 sm:mb-10 pb-6 border-slate-50 border-b"
+              class="flex md:flex-row flex-col justify-between md:items-center gap-2 mb-4 sm:mb-6 pb-6 border-slate-50 border-b"
             >
               <div class="flex-1 min-w-0">
                 <Field.Field class="w-full">
                   <Textarea
                     bind:value={recipeName}
-                    class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto overflow-hidden font-[Lilita_One] font-normal text-slate-900 placeholder:text-slate-200 text-3xl md:text-4xl tracking-tight resize-none no-scrollbar"
+                    class="bg-transparent shadow-none p-0 border-none focus:ring-0 w-full h-auto min-h-auto overflow-hidden font-[Lilita_One] font-normal text-slate-900 placeholder:text-slate-200 text-3xl md:text-4xl tracking-tight resize-none no-scrollbar"
                     placeholder="Name your creation..."
                     rows={1}
                   />
                 </Field.Field>
-                <div class="flex items-center gap-2 mt-1">
+                <div class="flex items-center gap-2">
                   {#if isDirty}
                     <span class="bg-amber-100 px-2 py-0.5 rounded-full font-bold text-[9px] text-amber-700 uppercase tracking-wider animate-pulse">
                       Unsaved Changes
                     </span>
                   {:else}
                     <span class="font-bold text-[9px] text-slate-400 uppercase tracking-widest">
-                      Saved to Vault
+                      &#10003; All Changes Saved
                     </span>
                   {/if}
                 </div>
               </div>
 
-              <div class="flex justify-between sm:justify-end items-center gap-3 sm:gap-6">
+              <div class="flex justify-between sm:justify-end items-center gap-1 sm:gap-6">
                 <div class="flex items-center gap-1 sm:gap-2">
                   <button
                     onclick={resetCalculator}
@@ -640,7 +644,7 @@
                     title="Reset"
                   >
                     <RotateCcw class="w-3.5 h-3.5" />
-                    <span class="hidden sm:inline">Reset</span>
+                    <span >Reset</span>
                   </button>
                   <button
                     onclick={() => saveRecipe()}
@@ -648,7 +652,7 @@
                     title="Save"
                   >
                     <Save class="w-3.5 h-3.5" />
-                    <span class="hidden sm:inline">Save</span>
+                    <span>Save</span>
                   </button>
                 </div>
 
@@ -701,10 +705,10 @@
                           <Puzzle class="w-4 h-4 text-slate-500" />
                         </div>
                         <Field.Field>
-                          <Input
-                            type="text"
+                          <Textarea
+                            rows={1}
                             bind:value={stage.name}
-                            class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto font-black text-slate-800 text-lg uppercase tracking-widest"
+                            class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
                             placeholder="Stage Name"
                           />
                         </Field.Field>
@@ -853,6 +857,7 @@
               {stages}
               hydration={calculations.hydration}
               {portions}
+              {isScalingEnabled}
               {notes}
               onUpdateRecipe={handleRecipeUpdate}
             />

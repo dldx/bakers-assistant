@@ -18,9 +18,20 @@ export interface BakerResponse {
         ingredients: Ingredient[];
         stages: RecipeStage[];
         portions: number;
+        isScalingEnabled?: boolean;
         targetHydration?: number;
         notes: string;
     } | null;
+}
+
+export interface BakerContext {
+    recipeName: string;
+    ingredients: Ingredient[];
+    stages: RecipeStage[];
+    hydration: number;
+    portions: number;
+    notes: string;
+    isScalingEnabled: boolean;
 }
 
 const responseSchema = {
@@ -73,6 +84,10 @@ const responseSchema = {
               type: Type.NUMBER,
               description: "The number of loaves/batches."
           },
+          isScalingEnabled: {
+              type: Type.BOOLEAN,
+              description: "Whether scaling is active. Set TRUE if requested to scale (double/half/etc)."
+          },
           targetHydration: {
               type: Type.NUMBER,
               description: "Optional: Only included if asking for a hydration change."
@@ -85,19 +100,12 @@ const responseSchema = {
         required: ["recipeName", "ingredients", "stages", "portions", "notes"]
     }
   },
-    required: ["recipeUpdate"]
+    required: ["advice"]
 };
 
 export async function getBakerAssistantResponse(
   messages: { role: "user" | "assistant"; content: string }[],
-  context: {
-    recipeName: string;
-    ingredients: Ingredient[];
-      stages: RecipeStage[];
-    hydration: number;
-      portions: number;
-      notes: string;
-  }
+  context: BakerContext
 ): Promise<BakerResponse> {
     const model = "gemini-3-flash-preview";
 
@@ -106,61 +114,50 @@ export async function getBakerAssistantResponse(
 
     RESPONSE FORMAT:
     - 'advice': A friendly, concise message (max 3 sentences).
-    - 'recipeUpdate': Always return the COMPLETE recipe state as an OBJECT.
-    - You must include 'recipeName', 'ingredients', 'stages', 'portions', and 'notes' every time you return a 'recipeUpdate'.
+    - 'recipeUpdate': The COMPLETE recipe state as an OBJECT. Set to null if the user is just asking a question and no recipe changes are needed.
+    - You must include 'recipeName', 'ingredients', 'stages', 'portions', and 'notes' every time you return a non-null 'recipeUpdate'.
 
     STAGES & STRUCTURE:
     - Many recipes have multiple stages (e.g., 'Levain', 'Autolyse', 'Main Dough').
     - Each stage must have a unique 'id' and a 'name'.
     - Each ingredient should have a 'stageId' that matches one of the stage IDs.
 
-    CURRENT CONTEXT:
-    - Recipe: ${context.recipeName}
-    - Hydration: ${context.hydration.toFixed(1)}%
-    - Yield: ${context.portions} portion(s)
-    - Stages: ${JSON.stringify(context.stages)}
-    - Ingredients: ${JSON.stringify(context.ingredients)}
-    - Existing Notes: ${context.notes}
-
     CORE TASKS:
-    1. Parsing: For new recipes, extract all details and group them into logical stages.
-    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients and stages.
-    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2} and return the FULL recipe with current context. The system will handle the math.
-    4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78 and return the FULL recipe state. The system will handle the math.
+    1. Parsing: For new recipes provided by the user, extract all details, group them into logical stages, and return the FULL 'recipeUpdate'.
+    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients and stages in 'recipeUpdate'.
+    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2}, set 'isScalingEnabled' to true, and return the FULL recipe update.
+    4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78, set 'isScalingEnabled' to true, and return the FULL recipe update.
+    5. General Advice: If user is asking a question or for advice without changing the recipe, set 'recipeUpdate' to null.
 
     STRICT CONSTRAINTS:
     - NEVER return a partial 'recipeUpdate'.
     - DO NOT perform mathematical scaling or hydration calculations yourself.
     - Valid categories: ${Object.values(IngredientCategory).join(", ")}.
-    - Be concise, artisanal, and encouraging.
+    - Be concise, artisanal, and encouraging.`;
 
-    EXAMPLES:
-    User: "Convert this to a 2-stage recipe with a levain."
-    Response: {
-      "advice": "That's a great idea! Dividing the recipe into a levain stage will help you better manage your fermentation timing.",
-      "recipeUpdate": {
-        "recipeName": "${context.recipeName}",
-        "stages": [
-          { "id": "levain", "name": "Levain" },
-          { "id": "main", "name": "Main Dough" }
-        ],
-        "ingredients": [
-          { "name": "Flour", "weight": 100, "category": "flour", "stageId": "levain" },
-          { "name": "Water", "weight": 100, "category": "water", "stageId": "levain" },
-          { "name": "Starter", "weight": 20, "category": "starter", "stageId": "levain" },
-          { "name": "Bread Flour", "weight": 400, "category": "flour", "stageId": "main" },
-          { "name": "Water", "weight": 250, "category": "water", "stageId": "main" },
-          { "name": "Salt", "weight": 10, "category": "salt", "stageId": "main" }
-        ],
-        "portions": ${context.portions},
-        "notes": "Grouping into stages for better organization..."
-      }
-    }`;
+  const contents = messages.map((m, idx) => {
+    const isLatest = idx === messages.length - 1;
+    let text = m.content;
 
-  const contents = messages.map(m => ({
-    role: m.role === "user" ? "user" : "model",
-    parts: [{ text: m.content }]
-  }));
+    if (isLatest && m.role === "user") {
+        // Append context to the last user message
+        const contextStr = JSON.stringify({
+            recipeName: context.recipeName,
+            ingredients: context.ingredients,
+            stages: context.stages,
+            portions: context.portions,
+            notes: context.notes,
+            hydration: context.hydration,
+            isScalingEnabled: context.isScalingEnabled
+        });
+        text = `${m.content}\n\n[LATEST_RECIPE_CONTEXT]\n${contextStr}`;
+    }
+
+    return {
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text }]
+    };
+  });
 
   const response = await getAI().models.generateContent({
     model,

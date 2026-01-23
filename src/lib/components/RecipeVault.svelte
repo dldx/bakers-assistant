@@ -143,7 +143,7 @@
           >
             <div class="flex-1">
               <button
-                class="font-black text-slate-900 group-hover:text-amber-600 text-lg sm:text-xl transition-colors"
+                class="font-black text-slate-900 group-hover:text-amber-600 text-lg sm:text-xl text-left transition-colors"
                 onclick={() => onLoadRecipe(recipe)}
               >
                 {recipe.name}
