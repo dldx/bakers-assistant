@@ -134,14 +134,18 @@
   // --- Effects & Logic ---
   onMount(async () => {
     syncKey = localStorage.getItem("syncKey") || "";
+    window.addEventListener("hashchange", handleHashChange);
+
     if (syncKey) {
       syncService = new SyncService(syncKey, refreshVault);
     }
 
     await refreshVault();
-    window.addEventListener("hashchange", handleHashChange);
-    await handleHashChange();
     lastSavedJson = captureState();
+
+    // Small delay for initial hash check to ensure UI has painted
+    // before any blocking confirm() dialogs appear
+    setTimeout(() => handleHashChange(), 300);
   });
 
   async function handleHashChange() {
@@ -192,6 +196,7 @@
         ) {
           updateSyncKey(key);
           window.history.replaceState(null, "", window.location.pathname);
+          view = "history";
         }
       }
     }
