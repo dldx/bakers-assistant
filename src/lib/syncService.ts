@@ -94,4 +94,10 @@ export class SyncService {
   public close() {
     this.socket?.close();
   }
+
+    public getShareUrl(): string | null {
+        if (!this.socket?.room) return null;
+        const base = typeof window !== "undefined" ? window.location.origin + window.location.pathname : "";
+        return `${base}#sync/${this.socket.room}`;
+    }
 }

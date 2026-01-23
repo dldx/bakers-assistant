@@ -12,6 +12,7 @@
     onRemixRecipe,
     onDeleteRecipe,
     onShareRecipe,
+    onShareSyncKey,
     onStartNewRecipe,
     onUpdateSyncKey,
     onExportVault,
@@ -23,6 +24,7 @@
     onRemixRecipe: (recipe: Recipe) => void;
     onDeleteRecipe: (id: number) => void;
     onShareRecipe: (recipe: Recipe) => void;
+    onShareSyncKey: () => void;
     onStartNewRecipe: () => void;
     onUpdateSyncKey: (key: string) => void;
     onExportVault: () => void;
@@ -83,6 +85,16 @@
           </button>
         {/if}
       </div>
+
+      {#if syncKey}
+        <button
+          onclick={onShareSyncKey}
+          title="Share Sync Link"
+          class="bg-sky-50 hover:bg-sky-100 p-3 rounded-2xl text-sky-600 transition"
+        >
+          <Share2 class="w-5 h-5" />
+        </button>
+      {/if}
 
       <div class="flex items-center gap-2">
         <button

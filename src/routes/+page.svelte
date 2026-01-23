@@ -161,6 +161,18 @@
         console.error("Failed to decode shared recipe", e);
         toast.error("Invalid share link.");
       }
+    } else if (hash.startsWith("sync/")) {
+      const key = hash.replace("sync/", "");
+      if (key && key !== syncKey) {
+        if (
+          confirm(
+            `Connect to shared vault with key: ${key}? This will sync your recipes with this key.`,
+          )
+        ) {
+          updateSyncKey(key);
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }
     }
   }
 
@@ -414,6 +426,13 @@
       console.error(e);
       toast.error("Failed to generate share link.");
     }
+  }
+
+  function shareSyncKey() {
+    const url = syncService?.getShareUrl();
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    toast.success("Sync key link copied to clipboard!");
   }
 
   async function remixRecipe(recipe: Recipe) {
@@ -928,6 +947,7 @@
         onRemixRecipe={remixRecipe}
         onDeleteRecipe={deleteRecipe}
         onShareRecipe={shareRecipe}
+        onShareSyncKey={shareSyncKey}
         onStartNewRecipe={startNewRecipe}
         onUpdateSyncKey={updateSyncKey}
         onExportVault={handleExportVault}
