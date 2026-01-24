@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { Trash2, GripVertical } from "lucide-svelte";
   import { slide } from "svelte/transition";
   import { useSortable } from "@dnd-kit-svelte/svelte/sortable";
@@ -18,6 +19,7 @@
     onRemove,
     index,
     stageId,
+    onAdd,
   } = $props<{
     ingredient: Ingredient;
     percentage: number;
@@ -27,6 +29,7 @@
     onRemove: (id: string) => void;
     index: number;
     stageId?: string;
+    onAdd: () => void;
   }>();
 
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
@@ -39,9 +42,71 @@
     data: () => ({ group: `${stageId || "root"}-${ing.category}` }),
   });
 
-  const meta = $derived(CATEGORY_META[ing.category as keyof typeof CATEGORY_META]);
+  const meta = $derived(
+    CATEGORY_META[ing.category as keyof typeof CATEGORY_META],
+  );
   const Icon = $derived(allIcons[ing.category as keyof typeof allIcons]);
   let isMenuOpen = $state(false);
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (isCookingMode) return;
+
+    const target = e.currentTarget as HTMLTextAreaElement;
+    const isAtStart = target.selectionStart === 0 && target.selectionEnd === 0;
+    const isAtEnd =
+      target.selectionStart === target.value.length &&
+      target.selectionEnd === target.value.length;
+
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      onAdd();
+      tick().then(() => {
+        const inputs = Array.from(
+          document.querySelectorAll(".js-ingredient-name"),
+        ) as HTMLTextAreaElement[];
+        const index = inputs.indexOf(target);
+        if (index !== -1 && index < inputs.length - 1) {
+          inputs[index + 1].focus();
+        }
+      });
+    } else if (e.key === "Backspace" && e.shiftKey) {
+      e.preventDefault();
+      const inputs = Array.from(
+        document.querySelectorAll(".js-ingredient-name"),
+      ) as HTMLTextAreaElement[];
+      const index = inputs.indexOf(target);
+      onRemove(ing.id);
+      if (index > 0) {
+        tick().then(() => {
+          const remainingInputs = Array.from(
+            document.querySelectorAll(".js-ingredient-name"),
+          ) as HTMLTextAreaElement[];
+          const nextFocusIndex = Math.min(index - 1, remainingInputs.length - 1);
+          if (nextFocusIndex >= 0) {
+            remainingInputs[nextFocusIndex].focus();
+          }
+        });
+      }
+    } else if (e.key === "ArrowDown" && isAtEnd) {
+      const inputs = Array.from(
+        document.querySelectorAll(".js-ingredient-name"),
+      ) as HTMLTextAreaElement[];
+      const index = inputs.indexOf(target);
+      if (index !== -1 && index < inputs.length - 1) {
+        e.preventDefault();
+        inputs[index + 1].focus();
+      }
+    } else if (e.key === "ArrowUp" && isAtStart) {
+      const inputs = Array.from(
+        document.querySelectorAll(".js-ingredient-name"),
+      ) as HTMLTextAreaElement[];
+      const index = inputs.indexOf(target);
+      if (index > 0) {
+        e.preventDefault();
+        inputs[index - 1].focus();
+      }
+    }
+  }
 </script>
 
 <div
@@ -129,7 +194,8 @@
       disabled={isCookingMode}
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
-      class="resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-10 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
+      onkeydown={handleKeyDown}
+      class="js-ingredient-name resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-10 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
       isCookingMode
         ? 'line-through decoration-2 decoration-slate-400 font-bold border-0 bg-transparent shadow-none min-h-0 py-1 pointer-events-none' :
         isCookingMode ? 'font-bold border-0 bg-transparent shadow-none min-h-0 py-1 pointer-events-none'

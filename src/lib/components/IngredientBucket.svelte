@@ -90,6 +90,7 @@
             {allIcons}
             {onUpdate}
             {onRemove}
+            {onAdd}
           />
         </div>
       {/each}
