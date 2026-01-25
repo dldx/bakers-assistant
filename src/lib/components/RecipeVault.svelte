@@ -71,12 +71,12 @@
       } else if (sortBy === "date") {
         comparison = a.updatedAt - b.updatedAt;
       } else if (sortBy === "hydration") {
-        const hA = calculateRecipeStats(a.ingredients, a.portions || 1).hydration;
-        const hB = calculateRecipeStats(b.ingredients, b.portions || 1).hydration;
+        const hA = calculateRecipeStats(a.ingredients, a.portions || 1, a.stages || []).hydration;
+        const hB = calculateRecipeStats(b.ingredients, b.portions || 1, b.stages || []).hydration;
         comparison = hA - hB;
       } else if (sortBy === "sugar") {
         const getSugar = (r: Recipe) => {
-          const stats = calculateRecipeStats(r.ingredients, r.portions || 1);
+          const stats = calculateRecipeStats(r.ingredients, r.portions || 1, r.stages || []);
           return r.ingredients
             .filter((i: Ingredient) => i.category === IngredientCategory.SUGAR)
             .reduce((sum: number, i: Ingredient) => sum + (stats.ingredientPercentages[i.id] || 0), 0);
@@ -317,7 +317,7 @@
                 >
                 <span class="text-slate-300">•</span>
                 <span class="bg-sky-50 px-3 py-1 rounded-full font-black text-[10px] text-sky-600 uppercase tracking-widest"
-                  >{calculateRecipeStats(recipe.ingredients, recipe.portions || 1).hydration.toFixed(0)}% Hydration</span
+                  >{calculateRecipeStats(recipe.ingredients, recipe.portions || 1, recipe.stages || []).hydration.toFixed(0)}% Hydration</span
                 >
               </div>
             </div>
