@@ -187,7 +187,7 @@
             <Input
               type="number"
               value={portions}
-              onchange={(e) => onScaleByYield(Number(e.currentTarget.value))}
+              oninput={(e) => onScaleByYield(Number(e.currentTarget.value))}
               class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled
                 ? 'text-amber-500'
                 : 'text-slate-200'} text-lg sm:text-xl shadow-none h-auto"
@@ -207,7 +207,7 @@
               <Input
                 type="number"
                 value={Math.round(calculations.weightPerPortion)}
-                onchange={(e) =>
+                oninput={(e) =>
                   onScaleToTargetServingWeight(Number(e.currentTarget.value))}
                 readonly={!isScalingEnabled}
                 class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled
@@ -233,7 +233,7 @@
               <Input
                 type="number"
                 value={Math.round(calculations.totalWeight)}
-                onchange={(e) => onScaleToTotalWeight(Number(e.currentTarget.value))}
+                oninput={(e) => onScaleToTotalWeight(Number(e.currentTarget.value))}
                 readonly={!isScalingEnabled}
                 class="bg-transparent p-0 border-none focus:ring-0 w-full font-black {isScalingEnabled
                   ? 'text-amber-100'

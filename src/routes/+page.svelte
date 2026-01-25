@@ -294,7 +294,23 @@
   function updateIngredient(id: string, updates: Partial<Ingredient>) {
     const index = ingredients.findIndex((i) => i.id === id);
     if (index !== -1) {
-      ingredients[index] = { ...ingredients[index], ...updates };
+      // If scaling is enabled and the weight is changed, scale all other ingredients proportionally
+      if (
+        isScalingEnabled &&
+        updates.weight !== undefined &&
+        ingredients[index].weight > 0
+      ) {
+        const factor = updates.weight / ingredients[index].weight;
+        ingredients = ingredients.map((ing, i) => {
+          if (i === index) return { ...ing, ...updates };
+          return {
+            ...ing,
+            weight: Math.round(ing.weight * factor * 1000) / 1000,
+          };
+        });
+      } else {
+        ingredients[index] = { ...ingredients[index], ...updates };
+      }
     }
   }
 
@@ -375,11 +391,11 @@
   function scaleByYield(newPortions: number) {
     if (newPortions <= 0) return;
 
-    if (isScalingEnabled) {
+    if (isScalingEnabled && portions > 0) {
       const factor = newPortions / portions;
       ingredients = ingredients.map((ing) => ({
         ...ing,
-        weight: Math.round(ing.weight * factor * 10) / 10,
+        weight: Math.round(ing.weight * factor * 1000) / 1000,
       }));
     }
 
@@ -397,7 +413,7 @@
     const factor = targetTotal / calculations.totalWeight;
     ingredients = ingredients.map((ing) => ({
       ...ing,
-      weight: Math.round(ing.weight * factor * 10) / 10,
+      weight: Math.round(ing.weight * factor * 1000) / 1000,
     }));
   }
 
@@ -407,7 +423,7 @@
     const factor = targetTotal / calculations.totalWeight;
     ingredients = ingredients.map((ing) => ({
       ...ing,
-      weight: Math.round(ing.weight * factor * 10) / 10,
+      weight: Math.round(ing.weight * factor * 1000) / 1000,
     }));
   }
 
@@ -429,7 +445,7 @@
         ...ingredients[waterIdx],
         weight: Math.max(
           0,
-          Math.round((ingredients[waterIdx].weight + delta) * 10) / 10,
+          Math.round((ingredients[waterIdx].weight + delta) * 1000) / 1000,
         ),
       };
     } else {

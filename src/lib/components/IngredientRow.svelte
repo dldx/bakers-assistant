@@ -319,7 +319,7 @@
       <Input
         id="weight-{ing.id}"
         type="number"
-        bind:value={ing.weight}
+        value={Number(ing.weight.toFixed(1))}
         disabled={isCookingMode}
         oninput={(e) =>
           onUpdate(ing.id, {
