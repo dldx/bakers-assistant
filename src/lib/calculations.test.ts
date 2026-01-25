@@ -218,4 +218,23 @@ describe('calculateRecipeStats', () => {
         expect(result.totalWater).toBe(44); // 50 * 0.88
         expect(result.hydration).toBe(44);
     });
+
+    it('should exclude stages marked with excludeFromCalculations', () => {
+        const stages: RecipeStage[] = [
+            { id: 's1', name: 'Main' },
+            { id: 's2', name: 'Toppings', excludeFromCalculations: true }
+        ];
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 100, category: IngredientCategory.FLOUR, stageId: 's1' },
+            { id: '2', name: 'Water', weight: 70, category: IngredientCategory.WATER, stageId: 's1' },
+            { id: '3', name: 'Seeds', weight: 50, category: IngredientCategory.OTHER, stageId: 's2' }
+        ];
+
+        const result = calculateRecipeStats(ingredients, 1, stages);
+
+        expect(result.totalWeight).toBe(170); // 100 + 70, ignore 50
+        expect(result.totalFlour).toBe(100);
+        expect(result.totalWater).toBe(70);
+        expect(result.hydration).toBe(70);
+    });
 });

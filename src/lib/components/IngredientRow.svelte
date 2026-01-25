@@ -279,7 +279,7 @@
         />
       </div>
     </Field.Field>
-  {:else if (ing.category === IngredientCategory.FAT || ing.category === IngredientCategory.MILK) && !isCookingMode}
+  {:else if (ing.category === IngredientCategory.FAT || ing.category === IngredientCategory.MILK || ing.category === IngredientCategory.EGG) && !isCookingMode}
     <Field.Field class="relative flex flex-col items-center gap-0.5 w-fit">
       <Field.Label
         for="water-{ing.id}"

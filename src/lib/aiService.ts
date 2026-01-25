@@ -100,7 +100,11 @@ const responseSchema = {
                         type: Type.OBJECT,
                         properties: {
                             id: { type: Type.STRING },
-                            name: { type: Type.STRING }
+                            name: { type: Type.STRING },
+                            excludeFromCalculations: {
+                                type: Type.BOOLEAN,
+                                description: "If true, ingredients in this stage are excluded from baker's math (hydration/total weight)."
+                            }
                         },
                         required: ["id", "name"]
                     }
@@ -143,6 +147,7 @@ export async function getBakerAssistantResponse(
     STAGES & STRUCTURE:
     - Each stage must have a unique 'id' and a 'name'.
     - Ingredients use 'stageId' to link to a stage.
+    - Stages can have 'excludeFromCalculations': set this to true for optional mix-ins, toppings, or soakers that shouldn't affect the main dough's hydration or total weight math.
 
     CORE TASKS:
     1. Parsing: For new recipes, return the 'recipeUpdate' with all fields.
@@ -209,9 +214,9 @@ export async function getBakerAssistantResponse(
             systemInstruction,
             responseMimeType: "application/json",
             responseSchema: responseSchema as any,
-            // thinkingConfig: {
-            //     thinkingLevel: ThinkingLevel.MINIMAL
-            // }
+            thinkingConfig: {
+                thinkingLevel: ThinkingLevel.MINIMAL
+            }
         },
     });
 

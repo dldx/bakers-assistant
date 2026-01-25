@@ -19,6 +19,7 @@
     Gem,
     Flame,
     ChefHat,
+    Egg,
   } from "lucide-svelte";
   import { db } from "$lib/db";
   import {
@@ -85,7 +86,9 @@
   let portions = $state(1);
   let isScalingEnabled = $state(false);
   let isCookingMode = $state(false);
-  let stages = $state<RecipeStage[]>([{ id: "s1", name: "Main Dough" }]);
+  let stages = $state<RecipeStage[]>([
+    { id: "s1", name: "Main Dough", excludeFromCalculations: false },
+  ]);
 
   let view = $state<"calculator" | "history">("calculator");
   let activeRecipeId = $state<number | null>(null);
@@ -114,7 +117,7 @@
   import { Textarea } from "$lib/components/ui/textarea";
 
   // --- Derived Runes ---
-  const calculations = $derived(calculateRecipeStats(ingredients, portions));
+  const calculations = $derived(calculateRecipeStats(ingredients, portions, stages));
 
   // --- Dirty Tracking ---
   function captureState() {
@@ -272,6 +275,7 @@
     stages.push({
       id: Math.random().toString(36).substr(2, 9),
       name: `Stage ${stages.length + 1}`,
+      excludeFromCalculations: false,
     });
   }
 
@@ -501,7 +505,10 @@
     notes = recipe.notes || "";
     recipeName = recipe.name;
     portions = recipe.portions || 1;
-    stages = recipe.stages || [];
+    stages = (recipe.stages || []).map(s => ({
+      ...s,
+      excludeFromCalculations: !!s.excludeFromCalculations
+    }));
     activeRecipeId = recipe.id ?? null;
     view = "calculator";
 
@@ -608,9 +615,19 @@
       data.stages.forEach((newStage: RecipeStage) => {
         const idx = updatedStages.findIndex((s) => s.id === newStage.id);
         if (idx !== -1) {
-          updatedStages[idx] = newStage;
+          updatedStages[idx] = {
+            ...updatedStages[idx],
+            ...newStage,
+            excludeFromCalculations:
+              newStage.excludeFromCalculations ??
+              updatedStages[idx].excludeFromCalculations ??
+              false,
+          };
         } else {
-          updatedStages.push(newStage);
+          updatedStages.push({
+            excludeFromCalculations: false,
+            ...newStage,
+          });
         }
       });
       stages = updatedStages;
@@ -672,7 +689,7 @@
   }
 
   function clearToDefaults() {
-    stages = [{ id: "s1", name: "Main Dough" }];
+    stages = [{ id: "s1", name: "Main Dough", excludeFromCalculations: false }];
     ingredients = [
       {
         id: "1",
@@ -749,6 +766,7 @@
     [IngredientCategory.SALT]: Stone,
     [IngredientCategory.SUGAR]: Gem,
     [IngredientCategory.FAT]: Zap,
+    [IngredientCategory.EGG]: Egg,
     [IngredientCategory.TANGZHONG]: Flame,
     [IngredientCategory.OTHER]: Cookie,
   };
@@ -952,13 +970,30 @@
                             />
                           </Field.Field>
                         </div>
-                        <button
-                          onclick={() => removeStage(stage.id)}
-                          disabled={isCookingMode}
-                          class="disabled:hidden hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 class="w-5 h-5" />
-                        </button>
+                        <div class="flex items-center gap-4">
+                          {#if !isCookingMode}
+                            <div class="flex items-center gap-2 pr-4 border-slate-100 border-r">
+                              <Label for="exclude-{stage.id}" class="font-bold text-[10px] {stage.excludeFromCalculations ? 'text-amber-500' : 'text-slate-400'} uppercase tracking-widest cursor-pointer whitespace-nowrap">
+                                {#if stage.excludeFromCalculations }
+                                  <span class="hidden sm:inline">Excluded from </span>Maths
+                                {:else}
+                                  <span class="hidden sm:inline">Include in </span>Maths
+                                {/if}
+                              </Label>
+                              <Switch
+                                id="exclude-{stage.id}"
+                                bind:checked={stage.excludeFromCalculations}
+                              />
+                            </div>
+                          {/if}
+                          <button
+                            onclick={() => removeStage(stage.id)}
+                            disabled={isCookingMode}
+                            class="disabled:hidden hover:bg-red-50 p-2 rounded-xl text-slate-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 class="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div class="space-y-6">

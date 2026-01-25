@@ -1,13 +1,25 @@
-import { IngredientCategory, type Ingredient, type CalculationResult, type BreakdownItem } from "./types";
+import { IngredientCategory, type Ingredient, type CalculationResult, type BreakdownItem, type RecipeStage } from "./types";
 
-export function calculateRecipeStats(ingredients: Ingredient[], portions: number = 1): CalculationResult {
+export function calculateRecipeStats(
+    ingredients: Ingredient[],
+    portions: number = 1,
+    stages: RecipeStage[] = []
+): CalculationResult {
     let totalFlour = 0;
     let totalWater = 0;
     let totalWeight = 0;
     const flourBreakdown: BreakdownItem[] = [];
     const waterBreakdown: BreakdownItem[] = [];
 
+    // Map stages for quick lookup of exclusion status
+    const excludedStageIds = new Set(
+        stages.filter(s => s.excludeFromCalculations).map(s => s.id)
+    );
+
     ingredients.forEach((ing) => {
+        // Skip ingredients from excluded stages
+        if (ing.stageId && excludedStageIds.has(ing.stageId)) return;
+
         totalWeight += ing.weight;
         const name = ing.name || "Unnamed Ingredient";
         const stageId = ing.stageId;
