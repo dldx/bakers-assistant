@@ -208,10 +208,10 @@
 </script>
 
 <div
-  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-0 sm:rounded-4xl h-full min-h-100"
+  class="flex flex-col bg-white shadow-slate-200/40 shadow-xl border border-slate-200 rounded-0 sm:rounded-4xl h-full min-h-100 overflow-hidden"
 >
   <div
-    class="flex justify-between items-center bg-slate-50/50 p-4 sm:p-6 border-slate-100 border-b"
+    class="flex justify-between items-center bg-slate-50/50 p-4 sm:px-6 sm:py-5 border-slate-100 border-b"
   >
     <div class="flex items-center gap-3">
       <div class="bg-amber-100 p-2 rounded-xl">
@@ -366,26 +366,26 @@
 
   {#if pendingUpdate}
     <div
-      class="flex sm:flex-row flex-col justify-between items-center gap-4 bg-amber-50/50 p-4 sm:p-6 border-amber-100 border-t border-b"
+      class="flex 2xl:flex-row flex-col justify-between items-center gap-4 bg-gradient-to-r from-amber-50/80 to-amber-50/40 p-5 border-amber-100/50 border-t border-b"
       in:fade
     >
-      <div class="flex items-center gap-3">
-        <div class="bg-amber-100 p-2 rounded-xl">
-          <Sparkles class="w-4 h-4 text-amber-600" />
+      <div class="flex items-center gap-4 min-w-0">
+        <div class="bg-amber-100 shadow-sm p-2.5 rounded-2xl shrink-0">
+          <Sparkles class="w-5 h-5 text-amber-600" />
         </div>
-        <div>
-          <h4 class="font-black text-amber-900 text-xs uppercase tracking-wider">
+        <div class="min-w-0">
+          <h4 class="font-black text-[11px] text-amber-900 truncate uppercase tracking-[0.15em]">
             Recipe Suggestions
           </h4>
-          <p class="font-medium text-[10px] text-amber-700/70 uppercase tracking-[0.2em]">
-            AI recommended changes
+          <p class="font-bold text-[10px] text-amber-700/60 truncate uppercase tracking-[0.1em]">
+            AI Recommended changes ready
           </p>
         </div>
       </div>
-      <div class="flex gap-2 w-full sm:w-auto">
+      <div class="flex items-center gap-2 w-full 2xl:w-auto">
         <button
           onclick={() => (pendingUpdate = null)}
-          class="flex-1 sm:flex-none hover:bg-white px-4 py-2 border border-transparent hover:border-amber-200 rounded-xl font-black text-amber-700 text-xs uppercase tracking-widest transition-all"
+          class="flex-1 2xl:flex-none hover:bg-amber-100/50 px-4 py-2.5 rounded-2xl font-black text-[10px] text-amber-700/60 hover:text-amber-700 uppercase tracking-widest transition-all"
         >
           Discard
         </button>
@@ -395,7 +395,7 @@
             pendingUpdate = null;
             toast.success("Recipe updated successfully");
           }}
-          class="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700 shadow-amber-200 shadow-lg px-6 py-2 rounded-xl font-black text-white text-xs uppercase tracking-widest transition-all"
+          class="flex-1 2xl:flex-none bg-amber-600 hover:bg-amber-500 shadow-amber-600/20 shadow-xl px-6 py-2.5 rounded-2xl font-black text-[11px] text-white uppercase tracking-[0.15em] whitespace-nowrap active:scale-95 transition-all"
         >
           Apply Changes
         </button>

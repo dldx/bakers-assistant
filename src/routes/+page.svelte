@@ -797,7 +797,7 @@
     class="top-0 z-20 sticky bg-white/80 shadow-sm backdrop-blur-md border-slate-100 border-b"
   >
     <div
-      class="flex justify-between items-center mx-auto px-4 sm:px-6 max-w-6xl h-14 sm:h-16"
+      class="flex justify-between items-center mx-auto px-4 sm:px-6 max-w-7xl h-14 sm:h-16"
     >
       <button
         onclick={startNewRecipe}
@@ -854,7 +854,7 @@
     {#if view === "calculator"}
       <div class="gap-6 sm:gap-8 grid grid-cols-1 lg:grid-cols-12">
         <!-- Left: Inputs -->
-        <div class="space-y-6 lg:col-span-9" in:fade>
+        <div class="space-y-6 lg:col-span-8" in:fade>
           <div
             class="bg-white shadow-slate-200/50 shadow-xl p-4 sm:p-8 border border-slate-100 rounded-0 sm:rounded-4xl"
           >
@@ -1165,7 +1165,7 @@
         </div>
 
         <!-- Right: Summary Dashboard -->
-        <div class="lg:col-span-3" in:fly={{ y: 20 }}>
+        <div class="lg:col-span-4" in:fly={{ y: 20 }}>
           <div class="top-24 sticky space-y-6">
             <BakersMaths
               {calculations}
