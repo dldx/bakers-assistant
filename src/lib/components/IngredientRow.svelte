@@ -195,7 +195,7 @@
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
       onkeydown={handleKeyDown}
-      class="js-ingredient-name resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-10 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
+      class="js-ingredient-name resize-none grow bg-slate-50/50 disabled:opacity-100 focus:bg-white min-h-0 py-2 px-2 sm:px-3 border-slate-100 focus:border-amber-500 rounded-lg sm:rounded-xl focus-visible:ring-amber-500 placeholder:text-slate-300 text-xs sm:text-sm transition-all text-black {ing.checked &&
       isCookingMode
         ? 'line-through decoration-2 decoration-slate-400 font-bold border-0 bg-transparent shadow-none min-h-0 py-1 pointer-events-none' :
         isCookingMode ? 'font-bold border-0 bg-transparent shadow-none min-h-0 py-1 pointer-events-none'

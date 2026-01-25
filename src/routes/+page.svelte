@@ -87,7 +87,7 @@
   let isScalingEnabled = $state(false);
   let isCookingMode = $state(false);
   let stages = $state<RecipeStage[]>([
-    { id: "s1", name: "Main Dough", excludeFromCalculations: false },
+    { id: "s1", name: "Main Dough", includeInCalculations: true },
   ]);
 
   let view = $state<"calculator" | "history">("calculator");
@@ -275,7 +275,7 @@
     stages.push({
       id: Math.random().toString(36).substr(2, 9),
       name: `Stage ${stages.length + 1}`,
-      excludeFromCalculations: false,
+      includeInCalculations: true,
     });
   }
 
@@ -507,7 +507,7 @@
     portions = recipe.portions || 1;
     stages = (recipe.stages || []).map(s => ({
       ...s,
-      excludeFromCalculations: !!s.excludeFromCalculations
+      includeInCalculations: s.includeInCalculations ?? true
     }));
     activeRecipeId = recipe.id ?? null;
     view = "calculator";
@@ -618,14 +618,14 @@
           updatedStages[idx] = {
             ...updatedStages[idx],
             ...newStage,
-            excludeFromCalculations:
-              newStage.excludeFromCalculations ??
-              updatedStages[idx].excludeFromCalculations ??
-              false,
+            includeInCalculations:
+              newStage.includeInCalculations ??
+              updatedStages[idx].includeInCalculations ??
+              true,
           };
         } else {
           updatedStages.push({
-            excludeFromCalculations: false,
+            includeInCalculations: true,
             ...newStage,
           });
         }
@@ -689,7 +689,7 @@
   }
 
   function clearToDefaults() {
-    stages = [{ id: "s1", name: "Main Dough", excludeFromCalculations: false }];
+    stages = [{ id: "s1", name: "Main Dough", includeInCalculations: true }];
     ingredients = [
       {
         id: "1",
@@ -970,19 +970,19 @@
                             />
                           </Field.Field>
                         </div>
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1">
                           {#if !isCookingMode}
-                            <div class="flex items-center gap-2 pr-4 border-slate-100 border-r">
-                              <Label for="exclude-{stage.id}" class="font-bold text-[10px] {stage.excludeFromCalculations ? 'text-amber-500' : 'text-slate-400'} uppercase tracking-widest cursor-pointer whitespace-nowrap">
-                                {#if stage.excludeFromCalculations }
-                                  <span class="hidden sm:inline">Excluded from </span>Maths
+                            <div class="flex items-center gap-1 pr-2 border-slate-100 border-r">
+                              <Label for="calculate-{stage.id}" class="font-bold text-[10px] {stage.includeInCalculations ? 'text-slate-400' : 'text-amber-500'} uppercase tracking-widest cursor-pointer whitespace-nowrap">
+                                {#if stage.includeInCalculations}
+                                  Included<span class="hidden sm:inline"> in Maths</span>
                                 {:else}
-                                  <span class="hidden sm:inline">Include in </span>Maths
+                                  Excluded<span class="hidden sm:inline"> from Maths</span>
                                 {/if}
                               </Label>
                               <Switch
-                                id="exclude-{stage.id}"
-                                bind:checked={stage.excludeFromCalculations}
+                                id="calculate-{stage.id}"
+                                bind:checked={stage.includeInCalculations}
                               />
                             </div>
                           {/if}

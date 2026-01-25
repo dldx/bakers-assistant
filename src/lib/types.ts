@@ -29,7 +29,7 @@ export interface Ingredient {
 export interface RecipeStage {
   id: string;
   name: string;
-  excludeFromCalculations?: boolean;
+  includeInCalculations?: boolean;
 }
 
 export interface Recipe {

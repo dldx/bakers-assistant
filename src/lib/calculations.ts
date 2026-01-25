@@ -11,9 +11,9 @@ export function calculateRecipeStats(
     const flourBreakdown: BreakdownItem[] = [];
     const waterBreakdown: BreakdownItem[] = [];
 
-    // Map stages for quick lookup of exclusion status
+    // Map stages for quick lookup of inclusion status
     const excludedStageIds = new Set(
-        stages.filter(s => s.excludeFromCalculations).map(s => s.id)
+        stages.filter(s => s.includeInCalculations === false).map(s => s.id)
     );
 
     ingredients.forEach((ing) => {

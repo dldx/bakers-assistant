@@ -219,10 +219,10 @@ describe('calculateRecipeStats', () => {
         expect(result.hydration).toBe(44);
     });
 
-    it('should exclude stages marked with excludeFromCalculations', () => {
+    it('should exclude stages marked with includeInCalculations: false', () => {
         const stages: RecipeStage[] = [
-            { id: 's1', name: 'Main' },
-            { id: 's2', name: 'Toppings', excludeFromCalculations: true }
+            { id: 's1', name: 'Main', includeInCalculations: true },
+            { id: 's2', name: 'Toppings', includeInCalculations: false }
         ];
         const ingredients: Ingredient[] = [
             { id: '1', name: 'Flour', weight: 100, category: IngredientCategory.FLOUR, stageId: 's1' },
