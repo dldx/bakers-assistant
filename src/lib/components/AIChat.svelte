@@ -14,7 +14,7 @@
   import { fly, fade } from "svelte/transition";
   import { onMount } from "svelte";
   import Markdown from "svelte-exmarkdown";
-  import { getBakerAssistantResponse, type ChatMessage } from "$lib/aiService";
+  import { getBakerAssistantResponse, type ChatMessage, type BakerResponse } from "$lib/aiService";
   import type { Ingredient, RecipeStage } from "$lib/types";
   import { toast } from "svelte-sonner";
   import { Textarea } from "$lib/components/ui/textarea";
@@ -30,8 +30,10 @@
     notes: string;
     onUpdateRecipe: (data: {
       recipeName?: string;
-      ingredients?: Ingredient[];
+      ingredients?: Partial<Ingredient>[];
+      removeIngredientIds?: string[];
       stages?: RecipeStage[];
+      removeStageIds?: string[];
       portions?: number;
       isScalingEnabled?: boolean;
       targetHydration?: number;
@@ -46,6 +48,7 @@
   let isAnalyzing = $state(false);
   let isEditingKey = $state(false);
   let chatContainer = $state<HTMLElement | null>(null);
+  let pendingUpdate = $state<BakerResponse['recipeUpdate']>(null);
 
   // Image handling
   let pendingImage = $state<{ data: string; mimeType: string } | null>(null);
@@ -116,6 +119,7 @@
     chatMessages.push({ role: "user", content: message, image });
     userInput = "";
     pendingImage = null;
+    pendingUpdate = null;
     isAnalyzing = true;
 
     try {
@@ -138,8 +142,7 @@
       }
 
       if (response.recipeUpdate) {
-        onUpdateRecipe(response.recipeUpdate);
-        toast.info("Recipe updated by AI analysis");
+        pendingUpdate = response.recipeUpdate;
       }
     } catch (e: any) {
       console.error("AI Assistant Error:", e);
@@ -176,6 +179,30 @@
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendChatMessage();
+    }
+  }
+
+  function handlePaste(e: ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          const base64Data = result.split(",")[1];
+          pendingImage = {
+            data: base64Data,
+            mimeType: file.type,
+          };
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
     }
   }
 </script>
@@ -337,6 +364,45 @@
     {/if}
   </div>
 
+  {#if pendingUpdate}
+    <div
+      class="flex sm:flex-row flex-col justify-between items-center gap-4 bg-amber-50/50 p-4 sm:p-6 border-amber-100 border-t border-b"
+      in:fade
+    >
+      <div class="flex items-center gap-3">
+        <div class="bg-amber-100 p-2 rounded-xl">
+          <Sparkles class="w-4 h-4 text-amber-600" />
+        </div>
+        <div>
+          <h4 class="font-black text-amber-900 text-xs uppercase tracking-wider">
+            Recipe Suggestions
+          </h4>
+          <p class="font-medium text-[10px] text-amber-700/70 uppercase tracking-[0.2em]">
+            AI recommended changes
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <button
+          onclick={() => (pendingUpdate = null)}
+          class="flex-1 sm:flex-none hover:bg-white px-4 py-2 border border-transparent hover:border-amber-200 rounded-xl font-black text-amber-700 text-xs uppercase tracking-widest transition-all"
+        >
+          Discard
+        </button>
+        <button
+          onclick={() => {
+            if (pendingUpdate) onUpdateRecipe(pendingUpdate);
+            pendingUpdate = null;
+            toast.success("Recipe updated successfully");
+          }}
+          class="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700 shadow-amber-200 shadow-lg px-6 py-2 rounded-xl font-black text-white text-xs uppercase tracking-widest transition-all"
+        >
+          Apply Changes
+        </button>
+      </div>
+    </div>
+  {/if}
+
   <div class="bg-slate-50 p-4 border-slate-100 border-t">
     {#if pendingImage}
       <div class="relative bg-white shadow-sm mb-3 p-1.5 border border-slate-200 rounded-2xl w-24 h-24" in:fade>
@@ -365,6 +431,7 @@
           bind:value={userInput}
           disabled={!hasKey}
           onkeydown={handleKeydown}
+          onpaste={handlePaste}
           placeholder={hasKey ? (pendingImage ? "Describe this photo..." : "Ask or paste a recipe...") : "Enter API key above to start"}
           class="bg-white disabled:bg-slate-50 shadow-sm py-3 pr-12 pl-4 border border-slate-200 focus:border-transparent rounded-xl focus:ring-2 focus:ring-amber-500 w-full min-h-11.5 text-sm transition-all resize-none disabled:cursor-not-allowed no-scrollbar"
           rows={1}

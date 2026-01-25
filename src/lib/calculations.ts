@@ -29,6 +29,11 @@ export function calculateRecipeStats(ingredients: Ingredient[], portions: number
             const water = ing.weight * (content / 100);
             totalWater += water;
             if (water > 0) waterBreakdown.push({ name: `${name} (Water)`, amount: water, stageId });
+        } else if (ing.category === IngredientCategory.EGG) {
+            const content = ing.waterContent ?? 75; // Default whole egg
+            const water = ing.weight * (content / 100);
+            totalWater += water;
+            if (water > 0) waterBreakdown.push({ name: `${name} (Water)`, amount: water, stageId });
         } else if (ing.category === IngredientCategory.TANGZHONG) {
             // Tangzhong 1:X ratio (default 1:5)
             const ratioConfig = ing.tangzhongRatio ?? 5;

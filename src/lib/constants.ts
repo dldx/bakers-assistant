@@ -44,6 +44,12 @@ export const CATEGORY_META = {
     iconColor: 'text-yellow-600',
     placeholder: 'e.g., Butter, Oil'
   },
+  [IngredientCategory.EGG]: {
+    label: 'Eggs',
+    color: 'bg-orange-50 text-orange-900 border-orange-100',
+    iconColor: 'text-orange-500',
+    placeholder: 'e.g., Whole Egg'
+  },
   [IngredientCategory.TANGZHONG]: {
     label: 'Tangzhong',
     color: 'bg-orange-100 text-orange-800 border-orange-200',

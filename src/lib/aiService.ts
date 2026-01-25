@@ -14,13 +14,15 @@ function getAI() {
 export interface BakerResponse {
     advice?: string;
     recipeUpdate: {
-        recipeName: string;
-        ingredients: Ingredient[];
-        stages: RecipeStage[];
-        portions: number;
+        recipeName?: string;
+        ingredients?: Partial<Ingredient>[];
+        removeIngredientIds?: string[];
+        stages?: RecipeStage[];
+        removeStageIds?: string[];
+        portions?: number;
         isScalingEnabled?: boolean;
         targetHydration?: number;
-        notes: string;
+        notes?: string;
     } | null;
 }
 
@@ -54,32 +56,42 @@ const responseSchema = {
         recipeUpdate: {
             type: Type.OBJECT,
             nullable: true,
-            description: "Complete structured recipe data. Always return the full state when changes are proposed.",
+            description: "Structured recipe adjustments. Only include the fields that need to change to avoid transcription errors.",
             properties: {
                 recipeName: {
                     type: Type.STRING,
-                    description: "A short, concise name for the recipe."
+                    description: "Updated recipe name."
                 },
                 ingredients: {
                     type: Type.ARRAY,
-                    description: "The complete list of ingredients.",
+                    description: "Ingredients to add or update. To update, include the 'id'. To add, omit 'id'.",
                     items: {
                         type: Type.OBJECT,
                         properties: {
+                            id: { type: Type.STRING, description: "Existing ingredient ID to update." },
                             name: { type: Type.STRING },
                             weight: { type: Type.NUMBER },
                             category: {
                                 type: Type.STRING,
                                 enum: Object.values(IngredientCategory)
                             },
-                            stageId: { type: Type.STRING, description: "ID of the stage this ingredient belongs to." },
-                            hydration: { type: Type.NUMBER, description: "Starter hydration % (default 100)." },
-                            tangzhongRatio: { type: Type.NUMBER, description: "Tangzhong water ratio (default 5 for 1:5)." },
-                            waterContent: { type: Type.NUMBER, description: "Liquid percentage for fats/milks." },
-                            proteinContent: { type: Type.NUMBER, description: "Flour protein % (e.g. 12.5)." }
-                        },
-                        required: ["name", "weight", "category"]
+                            stageId: { type: Type.STRING },
+                            hydration: { type: Type.NUMBER },
+                            tangzhongRatio: { type: Type.NUMBER },
+                            waterContent: { type: Type.NUMBER },
+                            proteinContent: { type: Type.NUMBER }
+                        }
                     }
+                },
+                removeIngredientIds: {
+                    type: Type.ARRAY,
+                    description: "List of IDs of ingredients to remove from the recipe.",
+                    items: { type: Type.STRING }
+                },
+                removeStageIds: {
+                    type: Type.ARRAY,
+                    description: "List of IDs of stages to remove.",
+                    items: { type: Type.STRING }
                 },
                 stages: {
                     type: Type.ARRAY,
@@ -99,18 +111,17 @@ const responseSchema = {
                 },
                 isScalingEnabled: {
                     type: Type.BOOLEAN,
-                    description: "Whether scaling is active. Set TRUE if requested to scale (double/half/etc)."
+                    description: "Whether scaling is active."
                 },
                 targetHydration: {
                     type: Type.NUMBER,
-                    description: "Optional: Only included if asking for a hydration change."
+                    description: "Set this to trigger a hydration recalculation."
                 },
                 notes: {
                     type: Type.STRING,
-                    description: "Complete instructions and notes in Markdown."
+                    description: "Updated Markdown notes/instructions."
                 }
-            },
-            required: ["recipeName", "ingredients", "stages", "portions", "notes"]
+            }
         }
     },
     required: ["advice"]
@@ -127,31 +138,32 @@ export async function getBakerAssistantResponse(
 
     RESPONSE FORMAT:
     - 'advice': A friendly, concise message (max 3 sentences).
-    - 'recipeUpdate': The COMPLETE recipe state as an OBJECT. Set to null if the user is just asking a question and no recipe changes are needed.
-    - You must include 'recipeName', 'ingredients', 'stages', 'portions', and 'notes' every time you return a non-null 'recipeUpdate'.
+    - 'recipeUpdate': An OBJECT containing ONLY the changes needed. Set to null if no changes are needed.
 
     STAGES & STRUCTURE:
-    - Many recipes have multiple stages (e.g., 'Levain', 'Autolyse', 'Main Dough').
     - Each stage must have a unique 'id' and a 'name'.
-    - Each ingredient should have a 'stageId' that matches one of the stage IDs.
+    - Ingredients use 'stageId' to link to a stage.
 
     CORE TASKS:
-    1. Parsing: For new recipes provided by the user (text or image), extract all details, group them into logical stages, and return the FULL 'recipeUpdate'. Look for protein context (e.g. "12% protein") and hydration details (e.g. "100% hydration starter").
-    2. Modification: When swapping/adding/removing ingredients, return the FULL list of ingredients and stages in 'recipeUpdate'.
-    3. Scaling: If the user says "double it", set 'portions' to ${context.portions * 2}, set 'isScalingEnabled' to true, and return the FULL recipe update.
-    4. Hydration: If the user says "make it 78% hydration", set 'targetHydration' to 78, set 'isScalingEnabled' to true, and return the FULL recipe update.
-    5. Photo Analysis: If the user provides an image, analyze it (crumb, crust, recipe) and provide expert feedback or extracted recipe.
-    6. General Advice: If user is asking a question or for advice without changing the recipe, set 'recipeUpdate' to null.
+    1. Parsing: For new recipes, return the 'recipeUpdate' with all fields.
+    2. Modification: To update an ingredient, include its 'id' in the 'ingredients' array. To add one, omit 'id'. To remove one, put its 'id' in 'removeIngredientIds'. Same principle for stages with 'stages' and 'removeStageIds'.
+    3. Scaling: Only return the new 'portions' and set 'isScalingEnabled' to true.
+    4. Hydration: Only return 'targetHydration' and set 'isScalingEnabled' to true.
+    5. General Advice: Set 'recipeUpdate' to null.
+
+    CRITICAL: Only send 'recipeUpdate' fields that are changing. Do not repeat the entire ingredient list unless the user is providing a completely new recipe. This prevents transcription errors.
 
     INGREDIENT METADATA:
     - 'proteinContent': Only for Flour.
     - 'hydration': Only for Starter/Leavening. Default sourdough is 100%.
-    - 'waterContent': Only for Milk/Butter/Fats. Default Milk is 87, Butter is 16.
+    - 'waterContent': Only for Milk/Butter/Fats/Eggs.
+      Defaults: Milk (87), Butter (16), Whole Egg (75), Egg White (88), Egg Yolk (50).
     - 'tangzhongRatio': Only for Tangzhong. Default is 5 (for 1:5 ratio).
 
     STRICT CONSTRAINTS:
-    - NEVER return a partial 'recipeUpdate'.
+    - Return a partial 'recipeUpdate' containing only changed fields.
     - DO NOT perform mathematical scaling or hydration calculations yourself.
+    - NUMERIC VALUES: Use whole numbers for weights. Limit all other numeric values (hydration, protein, ratios) to maximum 1 decimal place.
     - Valid categories: ${Object.values(IngredientCategory).join(", ")}.
     - Be concise, artisanal, and encouraging.`;
 
@@ -197,9 +209,9 @@ export async function getBakerAssistantResponse(
             systemInstruction,
             responseMimeType: "application/json",
             responseSchema: responseSchema as any,
-            thinkingConfig: {
-                thinkingLevel: ThinkingLevel.MINIMAL
-            }
+            // thinkingConfig: {
+            //     thinkingLevel: ThinkingLevel.MINIMAL
+            // }
         },
     });
 

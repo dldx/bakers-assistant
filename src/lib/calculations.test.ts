@@ -194,4 +194,28 @@ describe('calculateRecipeStats', () => {
 
         expect(result.weightPerPortion).toBe(0);
     });
+
+    it('should handle eggs (75% water content default)', () => {
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 100, category: IngredientCategory.FLOUR },
+            { id: '2', name: 'Whole Egg', weight: 100, category: IngredientCategory.EGG }
+        ];
+
+        const result = calculateRecipeStats(ingredients);
+
+        expect(result.totalWater).toBe(75);
+        expect(result.hydration).toBe(75);
+    });
+
+    it('should handle egg whites (88% custom water content)', () => {
+        const ingredients: Ingredient[] = [
+            { id: '1', name: 'Flour', weight: 100, category: IngredientCategory.FLOUR },
+            { id: '2', name: 'Egg Whites', weight: 50, category: IngredientCategory.EGG, waterContent: 88 }
+        ];
+
+        const result = calculateRecipeStats(ingredients);
+
+        expect(result.totalWater).toBe(44); // 50 * 0.88
+        expect(result.hydration).toBe(44);
+    });
 });

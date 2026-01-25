@@ -7,6 +7,7 @@ export enum IngredientCategory {
   MILK = 'milk',
   SUGAR = 'sugar',
   FAT = 'fat',
+  EGG = 'egg',
   TANGZHONG = 'tangzhong',
   OTHER = 'other'
 }

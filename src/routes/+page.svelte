@@ -602,17 +602,60 @@
   function handleRecipeUpdate(data: any) {
     if (data.recipeName) recipeName = data.recipeName;
     if (data.notes) notes = data.notes;
-    if (data.stages) stages = data.stages;
+
+    if (data.stages) {
+      const updatedStages = [...stages];
+      data.stages.forEach((newStage: RecipeStage) => {
+        const idx = updatedStages.findIndex((s) => s.id === newStage.id);
+        if (idx !== -1) {
+          updatedStages[idx] = newStage;
+        } else {
+          updatedStages.push(newStage);
+        }
+      });
+      stages = updatedStages;
+    }
+
+    if (data.removeStageIds) {
+      stages = stages.filter((s) => !data.removeStageIds.includes(s.id));
+    }
 
     if (data.isScalingEnabled !== undefined) {
       isScalingEnabled = data.isScalingEnabled;
     }
 
     if (data.ingredients) {
-      ingredients = data.ingredients.map((ing: any) => ({
-        id: ing.id || Math.random().toString(36).substr(2, 9),
-        ...ing,
-      }));
+      let updatedIngredients = [...ingredients];
+      data.ingredients.forEach((ingUpdate: any) => {
+        if (ingUpdate.id) {
+          const idx = updatedIngredients.findIndex((i) => i.id === ingUpdate.id);
+          if (idx !== -1) {
+            updatedIngredients[idx] = {
+              ...updatedIngredients[idx],
+              ...ingUpdate,
+            };
+          } else {
+            // ID provided but not found - treat as new
+            updatedIngredients.push({
+              id: ingUpdate.id,
+              ...ingUpdate,
+            } as Ingredient);
+          }
+        } else {
+          // New ingredient - generate ID if missing
+          updatedIngredients.push({
+            id: generateUUID(),
+            ...ingUpdate,
+          } as Ingredient);
+        }
+      });
+      ingredients = updatedIngredients;
+    }
+
+    if (data.removeIngredientIds) {
+      ingredients = ingredients.filter(
+        (i) => !data.removeIngredientIds.includes(i.id),
+      );
     }
 
     if (data.portions && data.portions !== portions) {
