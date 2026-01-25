@@ -14,6 +14,7 @@
     onScaleByYield,
     onScaleToTargetServingWeight,
     onScaleToTotalWeight,
+    onAdjustHydration,
   }: {
     calculations: CalculationResult;
     portions: number;
@@ -22,6 +23,7 @@
     onScaleByYield: (newPortions: number) => void;
     onScaleToTargetServingWeight: (targetWeight: number) => void;
     onScaleToTotalWeight: (targetTotal: number) => void;
+    onAdjustHydration: (targetHydration: number) => void;
   } = $props();
 
   let activeBreakdown = $state<"flour" | "water" | null>(null);
@@ -71,9 +73,19 @@
     <div>
       <div class="flex justify-between items-end mb-3">
         <span class="font-bold text-slate-300 text-sm">Net Hydration</span>
-        <span class="font-black text-amber-400 text-3xl sm:text-4xl"
-          >{calculations.hydration.toFixed(1)}%</span
-        >
+        <div class="flex items-baseline gap-1">
+          <Input
+            type="number"
+            value={Number(calculations.hydration.toFixed(1))}
+            oninput={(e) => onAdjustHydration(Number(e.currentTarget.value))}
+            readonly={!isScalingEnabled}
+            class="bg-transparent p-0 border-none focus:ring-0 w-[3ch] text-right font-black {isScalingEnabled
+              ? 'text-amber-400'
+              : 'text-amber-400/80 cursor-not-allowed'} text-3xl md:text-4xl shadow-none h-auto number-input-no-spin"
+            step="0.1"
+          />
+          <span class="font-black text-amber-400 text-xl md:text-2xl">%</span>
+        </div>
       </div>
       <div class="bg-slate-800 p-0.5 rounded-full w-full h-3 overflow-hidden">
         <div
@@ -212,7 +224,7 @@
                 readonly={!isScalingEnabled}
                 class="bg-transparent p-0 border-none focus:ring-0 w-full font-bold {isScalingEnabled
                   ? 'text-slate-200'
-                  : 'text-slate-500'} text-lg sm:text-xl shadow-none h-auto"
+                  : 'text-slate-500 cursor-not-allowed'} text-lg sm:text-xl shadow-none h-auto"
                 min="1"
               />
               <span class="font-bold text-slate-500 text-xs">g</span>
@@ -237,7 +249,7 @@
                 readonly={!isScalingEnabled}
                 class="bg-transparent p-0 border-none focus:ring-0 w-full font-black {isScalingEnabled
                   ? 'text-amber-100'
-                  : 'text-amber-100/40'} text-2xl sm:text-3xl shadow-none h-auto"
+                  : 'text-amber-100/40 cursor-not-allowed'} text-2xl sm:text-3xl shadow-none h-auto"
                 min="1"
               />
               <span class="ml-auto font-black text-amber-500 text-lg">g</span>

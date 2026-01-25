@@ -294,23 +294,7 @@
   function updateIngredient(id: string, updates: Partial<Ingredient>) {
     const index = ingredients.findIndex((i) => i.id === id);
     if (index !== -1) {
-      // If scaling is enabled and the weight is changed, scale all other ingredients proportionally
-      if (
-        isScalingEnabled &&
-        updates.weight !== undefined &&
-        ingredients[index].weight > 0
-      ) {
-        const factor = updates.weight / ingredients[index].weight;
-        ingredients = ingredients.map((ing, i) => {
-          if (i === index) return { ...ing, ...updates };
-          return {
-            ...ing,
-            weight: Math.round(ing.weight * factor * 1000) / 1000,
-          };
-        });
-      } else {
-        ingredients[index] = { ...ingredients[index], ...updates };
-      }
+      ingredients[index] = { ...ingredients[index], ...updates };
     }
   }
 
@@ -453,7 +437,7 @@
       ingredients.push({
         id: Math.random().toString(36).substr(2, 9),
         name: "Water",
-        weight: Math.max(0, Math.round(delta * 10) / 10),
+        weight: Math.max(0, Math.round(delta * 1000) / 1000),
         category: IngredientCategory.WATER,
       });
     }
@@ -1175,6 +1159,7 @@
               onScaleByYield={scaleByYield}
               onScaleToTargetServingWeight={scaleToTargetServingWeight}
               onScaleToTotalWeight={scaleToTotalWeight}
+              onAdjustHydration={adjustHydration}
             />
 
             <!-- AI Chat Card -->

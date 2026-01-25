@@ -135,7 +135,7 @@ export async function getBakerAssistantResponse(
     messages: ChatMessage[],
     context: BakerContext
 ): Promise<BakerResponse> {
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-2.5-flash"//"gemini-3-flash-preview";
 
     const systemInstruction = `Expert Sourdough Baker Assistant.
     You help bakers update and refine their recipes. You can also analyze photos of bread, crumb structure, or handwritten recipes provided in images.
@@ -214,9 +214,9 @@ export async function getBakerAssistantResponse(
             systemInstruction,
             responseMimeType: "application/json",
             responseSchema: responseSchema as any,
-            thinkingConfig: {
-                thinkingLevel: ThinkingLevel.MINIMAL
-            }
+            // thinkingConfig: {
+            //     thinkingLevel: ThinkingLevel.MINIMAL
+            // }
         },
     });
 
