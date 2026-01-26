@@ -23,3 +23,10 @@ export function generateUUID(): string {
 		return v.toString(16);
 	});
 }
+
+export function slugify(str: string) {
+	return str
+		.toLowerCase()
+		.replace(/ /g, "-")
+		.replace(/[^\w-]+/g, "");
+}

@@ -3,12 +3,13 @@
   import { Trash2, GripVertical } from "lucide-svelte";
   import { slide } from "svelte/transition";
   import { useSortable } from "@dnd-kit-svelte/svelte/sortable";
-  import { IngredientCategory, type Ingredient } from "$lib/types";
+  import { IngredientCategory, type Ingredient, type RecipeStage } from "$lib/types";
   import { CATEGORY_META } from "$lib/constants";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
   import { Textarea } from "$lib/components/ui/textarea";
+  import { slugify } from "$lib/utils";
 
   let {
     ingredient: ing,
@@ -18,7 +19,7 @@
     onUpdate,
     onRemove,
     index,
-    stageId,
+    stage,
     onAdd,
   } = $props<{
     ingredient: Ingredient;
@@ -28,7 +29,7 @@
     onUpdate: (id: string, updates: Partial<Ingredient>) => void;
     onRemove: (id: string) => void;
     index: number;
-    stageId?: string;
+    stage?: RecipeStage;
     onAdd: () => void;
   }>();
 
@@ -38,8 +39,8 @@
     disabled: () => isCookingMode,
     type: "item",
     accept: "item",
-    group: () => `${stageId || "root"}-${ing.category}`,
-    data: () => ({ group: `${stageId || "root"}-${ing.category}` }),
+    group: () => `${stage?.id || "root"}-${ing.category}`,
+    data: () => ({ group: `${stage?.id || "root"}-${ing.category}` }),
   });
 
   const meta = $derived(
@@ -115,11 +116,13 @@
   tabindex={isCookingMode ? 0 : -1}
   onclick={() => isCookingMode && onUpdate(ing.id, { checked: !ing.checked })}
   onkeydown={(e) => isCookingMode && (e.key === " " || e.key === "Enter") && onUpdate(ing.id, { checked: !ing.checked })}
-  class="group relative flex items-center gap-2 sm:gap-3 py-1.5 {isCookingMode ? 'cursor-pointer select-none' : ''} {ing.checked &&
+  class="target:bg-amber-100 target:ring-2 target:ring-amber-200 target:rounded-none transition-all group relative flex items-center gap-2 sm:gap-3 py-1.5 {isCookingMode ? 'cursor-pointer select-none' : ''} {ing.checked &&
   isCookingMode
     ? 'opacity-40'
     : ''} {isDragging.current ? 'opacity-0 pointer-events-none' : ''} {isDropTarget.current ? 'bg-amber-50/50 rounded-xl' : ''}"
   transition:slide={{ axis: "y" }}
+  id={slugify((stage ? stage?.name : "") + "-" + ing.name)}
+  style="scroll-margin-top: 5rem;"
 >
   <!-- Drag Handle Indicator -->
   {#if !isCookingMode}
@@ -192,6 +195,7 @@
       placeholder={meta.placeholder}
       bind:value={ing.name}
       disabled={isCookingMode}
+      spellcheck={isCookingMode ? "false" : "true"}
       oninput={(e) =>
         onUpdate(ing.id, { name: (e.target as HTMLInputElement).value })}
       onkeydown={handleKeyDown}

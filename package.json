@@ -18,6 +18,7 @@
     "lucide-svelte": "^0.562.0",
     "mode-watcher": "^1.1.0",
     "partysocket": "^1.1.10",
+    "rehype-external-links": "^3.0.0",
     "svelte": "^5.48.0",
     "svelte-exmarkdown": "^5.0.2",
     "svelte-sonner": "^1.0.7",

@@ -2,7 +2,7 @@
   import { Plus } from "lucide-svelte";
   import { fade } from "svelte/transition";
   import { useSortable } from "@dnd-kit-svelte/svelte/sortable";
-  import { IngredientCategory, type Ingredient } from "$lib/types";
+  import { IngredientCategory, type Ingredient, type RecipeStage } from "$lib/types";
   import { CATEGORY_META } from "$lib/constants";
   import IngredientRow from "./IngredientRow.svelte";
 
@@ -13,7 +13,7 @@
     icon: Icon,
     allIcons,
     isCookingMode = false,
-    stageId,
+    stage,
     index,
     onUpdate,
     onRemove,
@@ -25,7 +25,7 @@
     icon: any;
     allIcons: Record<string, any>;
     isCookingMode?: boolean;
-    stageId?: string;
+    stage?: RecipeStage;
     index: number;
     onUpdate: (id: string, updates: Partial<Ingredient>) => void;
     onRemove: (id: string) => void;
@@ -33,7 +33,7 @@
   }>();
 
   const meta = $derived(CATEGORY_META[category as keyof typeof CATEGORY_META]);
-  const groupId = $derived(`${stageId || "root"}-${category}`);
+  const groupId = $derived(`${stage?.id || "root"}-${category}`);
 
   const { ref, isDropTarget } = useSortable({
     id: () => groupId,
@@ -85,7 +85,7 @@
             ingredient={ing}
             percentage={percentages[ing.id]}
             {index}
-            {stageId}
+            {stage}
             {isCookingMode}
             {allIcons}
             {onUpdate}

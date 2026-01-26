@@ -4,8 +4,10 @@
     import Markdown from "svelte-exmarkdown";
     import * as Field from "$lib/components/ui/field";
     import { Textarea } from "$lib/components/ui/textarea";
+    import { gfmPlugin } from "svelte-exmarkdown/gfm";
+    import rehypeExternalLinks from "rehype-external-links";
 
-    let { notes = $bindable("") } = $props();
+    let { notes = $bindable(""), ...restprops } = $props();
 
     let isEditing = $state(false);
     let containerRef: HTMLElement | null = $state(null);
@@ -23,6 +25,11 @@
 
     function startEditing(event?: MouseEvent | KeyboardEvent) {
         if (event && event.type === "click") {
+            const target = event.target as HTMLElement;
+            // Prevent entering edit mode if clicking a link
+            if (target.closest("a")) {
+                return;
+            }
             event.stopPropagation();
         }
         isEditing = true;
@@ -35,7 +42,7 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="mt-8 pt-8 border-slate-100 border-t" bind:this={containerRef}>
+<div class="mt-8 pt-8 border-slate-100 border-t" {...restprops} id="notes">
     <div class="flex justify-between items-center mb-4">
         <h3
             class="flex items-center gap-2 font-black text-slate-800 text-sm uppercase tracking-widest"
@@ -54,7 +61,7 @@
         {/if}
     </div>
 
-    <div class="relative">
+    <div class="relative" bind:this={containerRef}>
         {#if isEditing}
             <div class="group relative w-full" in:fade={{ duration: 150 }}>
                 <Field.Field>
@@ -90,7 +97,25 @@
                     <div
                         class="max-w-none prose-p:font-medium prose-headings:font-black prose-p:text-slate-600 prose-ol:list-decimal prose-ul:list-disc prose prose-sm prose-slate"
                     >
-                        <Markdown md={notes} />
+                        <Markdown
+                            md={notes}
+                            plugins={[
+                                gfmPlugin(),
+                                {
+                                    rehypePlugin: [
+                                            rehypeExternalLinks,
+                                            {
+                                                target: "_blank",
+                                                rel: [
+                                                    "nofollow",
+                                                    "noopener",
+                                                    "noreferrer",
+                                                ],
+                                            },
+                                        ],
+                                },
+                            ]}
+                        />
                     </div>
                 {:else}
                     <div

@@ -121,6 +121,10 @@
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 @utility number-input-no-spin {
   @apply [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none;
 }

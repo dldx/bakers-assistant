@@ -14,6 +14,7 @@
   import { fly, fade } from "svelte/transition";
   import { onMount } from "svelte";
   import Markdown from "svelte-exmarkdown";
+  import rehypeExternalLinks from "rehype-external-links";
   import { getBakerAssistantResponse, type ChatMessage, type BakerResponse } from "$lib/aiService";
   import type { Ingredient, RecipeStage } from "$lib/types";
   import { toast } from "svelte-sonner";
@@ -349,7 +350,22 @@
             </div>
           {/if}
           <div class="prose prose-sm prose-slate {msg.role === 'user' ? 'prose-invert' : ''}">
-            <Markdown md={msg.content} />
+            <Markdown
+              md={msg.content}
+              plugins={[
+                {
+                  rehypePlugins: [
+                    [
+                      rehypeExternalLinks,
+                      {
+                        target: "_blank",
+                        rel: ["nofollow", "noopener", "noreferrer"],
+                      },
+                    ],
+                  ],
+                },
+              ]}
+            />
           </div>
         </div>
       </div>

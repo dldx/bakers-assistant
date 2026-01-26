@@ -37,7 +37,6 @@
   import { toast } from "svelte-sonner";
   import { Switch } from "$lib/components/ui/switch";
   import { Label } from "$lib/components/ui/label";
-  import { Input } from "$lib/components/ui/input";
   import * as Field from "$lib/components/ui/field";
   import {
     DragDropProvider,
@@ -113,11 +112,13 @@
 
   // --- Derived Runes ---
   import { calculateRecipeStats } from "$lib/calculations";
-  import { generateUUID } from "$lib/utils";
+  import { generateUUID, slugify } from "$lib/utils";
   import { Textarea } from "$lib/components/ui/textarea";
 
   // --- Derived Runes ---
-  const calculations = $derived(calculateRecipeStats(ingredients, portions, stages));
+  const calculations = $derived(
+    calculateRecipeStats(ingredients, portions, stages),
+  );
 
   // --- Dirty Tracking ---
   function captureState() {
@@ -505,9 +506,9 @@
     notes = recipe.notes || "";
     recipeName = recipe.name;
     portions = recipe.portions || 1;
-    stages = (recipe.stages || []).map(s => ({
+    stages = (recipe.stages || []).map((s) => ({
       ...s,
-      includeInCalculations: s.includeInCalculations ?? true
+      includeInCalculations: s.includeInCalculations ?? true,
     }));
     activeRecipeId = recipe.id ?? null;
     view = "calculator";
@@ -645,7 +646,9 @@
       let updatedIngredients = [...ingredients];
       data.ingredients.forEach((ingUpdate: any) => {
         if (ingUpdate.id) {
-          const idx = updatedIngredients.findIndex((i) => i.id === ingUpdate.id);
+          const idx = updatedIngredients.findIndex(
+            (i) => i.id === ingUpdate.id,
+          );
           if (idx !== -1) {
             updatedIngredients[idx] = {
               ...updatedIngredients[idx],
@@ -770,6 +773,7 @@
     [IngredientCategory.TANGZHONG]: Flame,
     [IngredientCategory.OTHER]: Cookie,
   };
+
 </script>
 
 <svelte:head>
@@ -836,6 +840,9 @@
 
   <main class="mx-auto px-0 sm:px-2 sm:py-8 pb-2 max-w-6xl">
     {#if view === "calculator"}
+    <div class="top-20 sm:top-5 right-0 left-0 z-50 fixed flex justify-center pointer-events-none">
+    <a class="bg-white back-to-notes opacity-0 shadow-md px-3 py-1 rounded-lg font-bold text-amber-600 text-sm transition-all duration-500 align-center" href="#notes">Back to notes</a>
+    </div>
       <div class="gap-6 sm:gap-8 grid grid-cols-1 lg:grid-cols-12">
         <!-- Left: Inputs -->
         <div class="space-y-6 lg:col-span-8" in:fade>
@@ -930,7 +937,7 @@
               onDragEnd={handleGlobalDragEnd}
               onDragOver={handleGlobalDragOver}
             >
-              <div class="space-y-12">
+              <div class="space-y-12" id="recipe-stages">
                 {#if stages.length === 0}
                   <div class="space-y-10">
                     {#each Object.values(IngredientCategory) as cat, idx}
@@ -953,8 +960,10 @@
                 {:else}
                   {#each stages as stage, sIdx (stage.id)}
                     <div
-                      class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl"
+                      class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl target:rounded-xl target:ring-2 target:ring-amber-200"
                       transition:slide
+                      id="{slugify(stage.name)}"
+                      style="scroll-margin-top: 5rem;"
                     >
                       <div class="flex justify-between items-center mb-8">
                         <div class="flex items-center gap-3">
@@ -964,20 +973,33 @@
                           <Field.Field>
                             <Textarea
                               rows={1}
+                              spellcheck={!isCookingMode}
+                              disabled={isCookingMode}
                               bind:value={stage.name}
-                              class="bg-transparent shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
+                              class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
                               placeholder="Stage Name"
                             />
                           </Field.Field>
                         </div>
                         <div class="flex items-center gap-1">
                           {#if !isCookingMode}
-                            <div class="flex items-center gap-1 pr-2 border-slate-100 border-r">
-                              <Label for="calculate-{stage.id}" class="font-bold text-[10px] {stage.includeInCalculations ? 'text-slate-400' : 'text-amber-500'} uppercase tracking-widest cursor-pointer whitespace-nowrap">
+                            <div
+                              class="flex items-center gap-1 pr-2 border-slate-100 border-r"
+                            >
+                              <Label
+                                for="calculate-{stage.id}"
+                                class="font-bold text-[10px] {stage.includeInCalculations
+                                  ? 'text-slate-400'
+                                  : 'text-amber-500'} uppercase tracking-widest cursor-pointer whitespace-nowrap"
+                              >
                                 {#if stage.includeInCalculations}
-                                  Included<span class="hidden sm:inline"> in Maths</span>
+                                  Included<span class="hidden sm:inline">
+                                    in Maths</span
+                                  >
                                 {:else}
-                                  Excluded<span class="hidden sm:inline"> from Maths</span>
+                                  Excluded<span class="hidden sm:inline">
+                                    from Maths</span
+                                  >
                                 {/if}
                               </Label>
                               <Switch
@@ -1011,7 +1033,7 @@
                               icon={CATEGORY_ICONS[cat]}
                               allIcons={CATEGORY_ICONS}
                               {isCookingMode}
-                              stageId={stage.id}
+                              stage={stage}
                               onUpdate={updateIngredient}
                               onRemove={removeIngredient}
                               onAdd={() => addIngredient(cat, stage.id)}
@@ -1115,7 +1137,10 @@
                     <div
                       class="flex justify-center items-center bg-amber-50 rounded-lg w-8 h-8 text-amber-600"
                     >
-                      <CatIcon class="w-5 h-5 {CATEGORY_META[activeItem.category].iconColor}" />
+                      <CatIcon
+                        class="w-5 h-5 {CATEGORY_META[activeItem.category]
+                          .iconColor}"
+                      />
                     </div>
                     <div>
                       <div
@@ -1203,4 +1228,8 @@
   :global(.prose li) {
     margin-bottom: 0.5rem;
   }
+  :global(body:has(#recipe-stages  :target) .back-to-notes) {
+    opacity: 1;
+    pointer-events: auto;
+}
 </style>
