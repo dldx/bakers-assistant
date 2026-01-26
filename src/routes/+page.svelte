@@ -131,6 +131,41 @@
     });
   }
 
+  function getBaseline(recipe: Recipe) {
+    return JSON.stringify({
+      ingredients: recipe.ingredients,
+      stages: recipe.stages || [],
+      recipeName: recipe.name,
+      notes: recipe.notes || "",
+      portions: recipe.portions || 1,
+    });
+  }
+
+  function applyMerge(remote: Recipe, base: any) {
+    const before = captureState();
+
+    // Only update fields that haven't been touched locally (match the baseline)
+    if (recipeName === base.recipeName) recipeName = remote.name;
+    if (notes === base.notes) notes = remote.notes || "";
+    if (portions === base.portions) portions = remote.portions || 1;
+
+    // For arrays, we perform a binary merge: if the local array matches the baseline exactly,
+    // we replace it with the new remote version.
+    if (
+      JSON.stringify($state.snapshot(stages)) === JSON.stringify(base.stages)
+    ) {
+      stages = JSON.parse(JSON.stringify(remote.stages || []));
+    }
+    if (
+      JSON.stringify($state.snapshot(ingredients)) ===
+      JSON.stringify(base.ingredients)
+    ) {
+      ingredients = JSON.parse(JSON.stringify(remote.ingredients || []));
+    }
+
+    return before !== captureState();
+  }
+
   let lastSavedJson = $state("");
   const isDirty = $derived(
     lastSavedJson !== "" && lastSavedJson !== captureState(),
@@ -231,28 +266,64 @@
 
         // If no hash, or hash matches what we have in storage, we can restore everything
         if (!hash || hashMatchesStored) {
-          if (data.ingredients) ingredients = data.ingredients;
-          if (data.stages) stages = data.stages;
-          if (data.recipeName) recipeName = data.recipeName;
-          if (data.notes) notes = data.notes;
-          if (data.portions) portions = data.portions;
-          if (data.isScalingEnabled !== undefined)
-            isScalingEnabled = data.isScalingEnabled;
-          if (data.activeRecipeId !== undefined) {
-            if (storedRecipe) {
-              activeRecipeId = data.activeRecipeId;
-              if (storedRecipe.uuid && !hash) {
-                window.location.hash = `recipe/${storedRecipe.uuid}`;
-              }
+          if (storedRecipe && data.lastSavedJson) {
+            // Smart Merge: If we have a stored recipe and a baseline, compare them.
+            const remoteBaseline = getBaseline(storedRecipe);
+            const isLocalDirty =
+              data.lastSavedJson !==
+              JSON.stringify({
+                ingredients: data.ingredients,
+                stages: data.stages,
+                recipeName: data.recipeName,
+                notes: data.notes,
+                portions: data.portions,
+              });
+
+            if (!isLocalDirty) {
+              // Local was clean, just load the fresh DB version
+              loadRecipe(storedRecipe);
             } else {
-              activeRecipeId = null;
+              // Local was dirty, restore it then merge remote changes into it
+              ingredients = data.ingredients;
+              stages = data.stages;
+              recipeName = data.recipeName;
+              notes = data.notes;
+              portions = data.portions;
+              if (data.isScalingEnabled !== undefined)
+                isScalingEnabled = data.isScalingEnabled;
+              activeRecipeId = data.activeRecipeId;
+
+              // Apply remote updates to untouched local fields
+              applyMerge(storedRecipe, JSON.parse(data.lastSavedJson));
+              // Update baseline to the remote version so local changes remain "dirty" relative to it
+              lastSavedJson = remoteBaseline;
             }
+          } else {
+            // Standard fallback restoration
+            if (data.ingredients) ingredients = data.ingredients;
+            if (data.stages) stages = data.stages;
+            if (data.recipeName) recipeName = data.recipeName;
+            if (data.notes) notes = data.notes;
+            if (data.portions) portions = data.portions;
+            if (data.isScalingEnabled !== undefined)
+              isScalingEnabled = data.isScalingEnabled;
+            if (data.activeRecipeId !== undefined) {
+              if (storedRecipe) {
+                activeRecipeId = data.activeRecipeId;
+                if (storedRecipe.uuid && !hash) {
+                  window.location.hash = `recipe/${storedRecipe.uuid}`;
+                }
+              } else {
+                activeRecipeId = null;
+              }
+            }
+            if (data.lastSavedJson !== undefined)
+              lastSavedJson = data.lastSavedJson;
+            else lastSavedJson = captureState();
           }
+
           if (data.isCookingMode !== undefined)
             isCookingMode = data.isCookingMode;
-          if (data.lastSavedJson !== undefined)
-            lastSavedJson = data.lastSavedJson;
-          else lastSavedJson = captureState();
         }
 
         // Always restore UI view
@@ -336,6 +407,23 @@
       }
     }
     savedRecipes = all.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // Live Merge: If the active recipe was updated remotely, merge it into the UI
+    if (!isRestoring && activeRecipeId && lastSavedJson) {
+      const remote = all.find((r) => r.id === activeRecipeId);
+      if (remote) {
+        const remoteBaseline = getBaseline(remote);
+        if (remoteBaseline !== lastSavedJson) {
+          const changed = applyMerge(remote, JSON.parse(lastSavedJson));
+          lastSavedJson = remoteBaseline;
+          if (changed) {
+            toast.info(`Synced updates for "${remote.name}"`, {
+              description: "Changes from another device were merged.",
+            });
+          }
+        }
+      }
+    }
   }
 
   function addIngredient(category: IngredientCategory, stageId?: string) {
@@ -550,8 +638,10 @@
     if (recipe.uuid) {
       window.location.hash = `recipe/${recipe.uuid}`;
     }
+
+    // Update baseline first to prevent Sync toast on own save
+    lastSavedJson = getBaseline(recipe);
     await refreshVault();
-    lastSavedJson = captureState();
 
     if (syncService) {
       syncService.sendSave(recipe);
@@ -561,12 +651,7 @@
       toast.success(forceNew ? "Saved as new copy!" : "Recipe saved to vault!");
   }
 
-  function loadRecipe(recipe: Recipe, updateHash = true, force = false) {
-    if (!force && isDirty) {
-      if (!confirm(`Discard unsaved changes and load "${recipe.name}"?`))
-        return false;
-    }
-
+  function loadRecipe(recipe: Recipe, updateHash = true) {
     // Migration for legacy recipes: Apply top-level hydration to starters if missing
     const legacyHydration = (recipe as any).starterHydration ?? 100;
     const loadedIngredients = JSON.parse(JSON.stringify(recipe.ingredients));
@@ -599,7 +684,14 @@
       window.location.hash = `recipe/${recipe.uuid}`;
     }
     lastSavedJson = captureState();
-    return true;
+  }
+
+  function confirmAndLoadRecipe(recipe: Recipe) {
+    if (isDirty) {
+      if (!confirm(`Discard unsaved changes and load "${recipe.name}"?`))
+        return;
+    }
+    loadRecipe(recipe);
   }
 
   function shareRecipe(recipe: Recipe) {
@@ -628,7 +720,11 @@
   }
 
   async function remixRecipe(recipe: Recipe) {
-    if (!loadRecipe(recipe, false)) return;
+    if (isDirty) {
+      if (!confirm(`Discard unsaved changes and remix "${recipe.name}"?`))
+        return;
+    }
+    loadRecipe(recipe, false);
     recipeName += " (Remix)";
     activeRecipeId = null;
     await saveRecipe(true);
@@ -828,7 +924,7 @@
     if (isSaved) {
       const recipe = savedRecipes.find((r) => r.id === activeRecipeId);
       if (recipe) {
-        loadRecipe(recipe, true, true);
+        loadRecipe(recipe, true);
         return;
       }
     }
@@ -1295,7 +1391,7 @@
       <RecipeVault
         {savedRecipes}
         {syncKey}
-        onLoadRecipe={loadRecipe}
+        onLoadRecipe={confirmAndLoadRecipe}
         onRemixRecipe={remixRecipe}
         onDeleteRecipe={deleteRecipe}
         onShareRecipe={shareRecipe}
