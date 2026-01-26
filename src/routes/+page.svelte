@@ -1169,13 +1169,13 @@
               </DragOverlay>
             </DragDropProvider>
 
-            <NotesEditor bind:notes />
+            <NotesEditor bind:notes isCookingMode={isCookingMode} />
           </div>
         </div>
 
         <!-- Right: Summary Dashboard -->
         <div class="lg:col-span-4" in:fly={{ y: 20 }}>
-          <div class="top-24 sticky space-y-6">
+          <div class="top-20 sticky space-y-6">
             <BakersMaths
               {calculations}
               {portions}

@@ -7,7 +7,7 @@
     import { gfmPlugin } from "svelte-exmarkdown/gfm";
     import rehypeExternalLinks from "rehype-external-links";
 
-    let { notes = $bindable(""), ...restprops } = $props();
+    let { notes = $bindable(""), isCookingMode, ...restprops } = $props();
 
     let isEditing = $state(false);
     let containerRef: HTMLElement | null = $state(null);
@@ -87,7 +87,7 @@
             <!-- Rendered View -->
             <div
                 class="group relative bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:border-amber-200 rounded-2xl min-h-[140px] sm:min-h-[200px] text-black transition-colors cursor-text"
-                onclick={startEditing}
+                onclick={!isCookingMode ? startEditing : undefined}
                 onkeydown={(e) => e.key === "Enter" && startEditing()}
                 role="button"
                 tabindex="0"
