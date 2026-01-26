@@ -178,6 +178,28 @@
     };
   });
 
+  // --- Persistence ---
+  const STORAGE_KEY = "bakers_assistant_state_v1";
+  let isRestoring = $state(true);
+
+  $effect(() => {
+    if (isRestoring) return;
+
+    const stateToSave = {
+      ingredients: $state.snapshot(ingredients),
+      stages: $state.snapshot(stages),
+      recipeName,
+      notes,
+      portions,
+      isScalingEnabled,
+      activeRecipeId,
+      view,
+      isCookingMode,
+      lastSavedJson,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+  });
+
   // --- Effects & Logic ---
   onMount(async () => {
     syncKey = localStorage.getItem("syncKey") || "";
@@ -188,7 +210,62 @@
     }
 
     await refreshVault();
-    lastSavedJson = captureState();
+
+    // Restore state from localStorage
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      try {
+        const data = JSON.parse(savedState);
+
+        // If a hash is present, only restore non-recipe state if the hash matches the stored recipe
+        // or if it's a share/sync hash.
+        const hash = window.location.hash.substring(1);
+        const storedRecipe = data.activeRecipeId
+          ? savedRecipes.find((r) => r.id === data.activeRecipeId)
+          : null;
+        const hashMatchesStored =
+          hash &&
+          hash.startsWith("recipe/") &&
+          storedRecipe &&
+          hash === `recipe/${storedRecipe.uuid}`;
+
+        // If no hash, or hash matches what we have in storage, we can restore everything
+        if (!hash || hashMatchesStored) {
+          if (data.ingredients) ingredients = data.ingredients;
+          if (data.stages) stages = data.stages;
+          if (data.recipeName) recipeName = data.recipeName;
+          if (data.notes) notes = data.notes;
+          if (data.portions) portions = data.portions;
+          if (data.isScalingEnabled !== undefined)
+            isScalingEnabled = data.isScalingEnabled;
+          if (data.activeRecipeId !== undefined) {
+            if (storedRecipe) {
+              activeRecipeId = data.activeRecipeId;
+              if (storedRecipe.uuid && !hash) {
+                window.location.hash = `recipe/${storedRecipe.uuid}`;
+              }
+            } else {
+              activeRecipeId = null;
+            }
+          }
+          if (data.isCookingMode !== undefined)
+            isCookingMode = data.isCookingMode;
+          if (data.lastSavedJson !== undefined)
+            lastSavedJson = data.lastSavedJson;
+          else lastSavedJson = captureState();
+        }
+
+        // Always restore UI view
+        if (data.view) view = data.view;
+      } catch (e) {
+        console.error("Failed to restore state:", e);
+        lastSavedJson = captureState();
+      }
+    } else {
+      lastSavedJson = captureState();
+    }
+
+    isRestoring = false;
 
     // Small delay for initial hash check to ensure UI has painted
     // before any blocking confirm() dialogs appear
@@ -484,7 +561,12 @@
       toast.success(forceNew ? "Saved as new copy!" : "Recipe saved to vault!");
   }
 
-  function loadRecipe(recipe: Recipe, updateHash = true) {
+  function loadRecipe(recipe: Recipe, updateHash = true, force = false) {
+    if (!force && isDirty) {
+      if (!confirm(`Discard unsaved changes and load "${recipe.name}"?`))
+        return false;
+    }
+
     // Migration for legacy recipes: Apply top-level hydration to starters if missing
     const legacyHydration = (recipe as any).starterHydration ?? 100;
     const loadedIngredients = JSON.parse(JSON.stringify(recipe.ingredients));
@@ -517,6 +599,7 @@
       window.location.hash = `recipe/${recipe.uuid}`;
     }
     lastSavedJson = captureState();
+    return true;
   }
 
   function shareRecipe(recipe: Recipe) {
@@ -545,7 +628,7 @@
   }
 
   async function remixRecipe(recipe: Recipe) {
-    loadRecipe(recipe, false);
+    if (!loadRecipe(recipe, false)) return;
     recipeName += " (Remix)";
     activeRecipeId = null;
     await saveRecipe(true);
@@ -745,7 +828,7 @@
     if (isSaved) {
       const recipe = savedRecipes.find((r) => r.id === activeRecipeId);
       if (recipe) {
-        loadRecipe(recipe);
+        loadRecipe(recipe, true, true);
         return;
       }
     }
@@ -773,7 +856,6 @@
     [IngredientCategory.TANGZHONG]: Flame,
     [IngredientCategory.OTHER]: Cookie,
   };
-
 </script>
 
 <svelte:head>
@@ -840,9 +922,14 @@
 
   <main class="mx-auto px-0 sm:px-2 sm:py-8 pb-2 max-w-6xl">
     {#if view === "calculator"}
-    <div class="top-20 sm:top-5 right-0 left-0 z-50 fixed flex justify-center pointer-events-none">
-    <a class="bg-white back-to-notes opacity-0 shadow-md px-3 py-1 rounded-lg font-bold text-amber-600 text-sm transition-all duration-500 align-center" href="#notes">Back to notes</a>
-    </div>
+      <div
+        class="top-20 sm:top-5 right-0 left-0 z-50 fixed flex justify-center pointer-events-none"
+      >
+        <a
+          class="bg-white back-to-notes opacity-0 shadow-md px-3 py-1 rounded-lg font-bold text-amber-600 text-sm transition-all duration-500 align-center"
+          href="#notes">Back to notes</a
+        >
+      </div>
       <div class="gap-6 sm:gap-8 grid grid-cols-1 lg:grid-cols-12">
         <!-- Left: Inputs -->
         <div class="space-y-6 lg:col-span-8" in:fade>
@@ -962,7 +1049,7 @@
                     <div
                       class="bg-white/50 shadow-sm p-3 sm:p-8 border border-slate-100 rounded-3xl target:rounded-xl target:ring-2 target:ring-amber-200"
                       transition:slide
-                      id="{slugify(stage.name)}"
+                      id={slugify(stage.name)}
                       style="scroll-margin-top: 5rem;"
                     >
                       <div class="flex justify-between items-center mb-8">
@@ -976,29 +1063,31 @@
                               spellcheck={!isCookingMode}
                               disabled={isCookingMode}
                               bind:value={stage.name}
-                              class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg uppercase tracking-widest resize-none no-scrollbar"
+                              class="bg-transparent disabled:opacity-100 shadow-none p-0 border-none focus:ring-0 h-auto min-h-auto font-black text-slate-800 text-lg md:text-xl uppercase tracking-widest resize-none no-scrollbar"
                               placeholder="Stage Name"
                             />
                           </Field.Field>
                         </div>
-                        <div class="flex items-center gap-1">
+                        <div
+                          class="flex flex-col sm:flex-row items-end sm:items-center gap-1"
+                        >
                           {#if !isCookingMode}
                             <div
-                              class="flex items-center gap-1 pr-2 border-slate-100 border-r"
+                              class="flex items-center gap-1 pr-2 border-slate-100 sm:border-r"
                             >
                               <Label
                                 for="calculate-{stage.id}"
                                 class="font-bold text-[10px] {stage.includeInCalculations
                                   ? 'text-slate-400'
-                                  : 'text-amber-500'} uppercase tracking-widest cursor-pointer whitespace-nowrap"
+                                  : 'text-amber-500'} uppercase tracking-widest cursor-pointer whitespace-nowrap gap-0"
                               >
                                 {#if stage.includeInCalculations}
-                                  Included<span class="hidden sm:inline">
-                                    in Maths</span
+                                  Included<span class="hidden sm:inline"
+                                    >&nbsp;in Maths</span
                                   >
                                 {:else}
-                                  Excluded<span class="hidden sm:inline">
-                                    from Maths</span
+                                  Excluded<span class="hidden sm:inline"
+                                    >&nbsp;from Maths</span
                                   >
                                 {/if}
                               </Label>
@@ -1033,7 +1122,7 @@
                               icon={CATEGORY_ICONS[cat]}
                               allIcons={CATEGORY_ICONS}
                               {isCookingMode}
-                              stage={stage}
+                              {stage}
                               onUpdate={updateIngredient}
                               onRemove={removeIngredient}
                               onAdd={() => addIngredient(cat, stage.id)}
@@ -1169,7 +1258,7 @@
               </DragOverlay>
             </DragDropProvider>
 
-            <NotesEditor bind:notes isCookingMode={isCookingMode} />
+            <NotesEditor bind:notes {isCookingMode} />
           </div>
         </div>
 
@@ -1228,8 +1317,8 @@
   :global(.prose li) {
     margin-bottom: 0.5rem;
   }
-  :global(body:has(#recipe-stages  :target) .back-to-notes) {
+  :global(body:has(#recipe-stages :target) .back-to-notes) {
     opacity: 1;
     pointer-events: auto;
-}
+  }
 </style>
