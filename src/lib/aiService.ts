@@ -123,7 +123,7 @@ const responseSchema = {
                 },
                 notes: {
                     type: Type.STRING,
-                    description: "Updated Markdown notes/instructions."
+                    description: "Updated Markdown notes/instructions. Use Markdown for formatting. You can link to ingredients or stages using [Ingredient Name](#stage-name-ingredient-name) or [Stage Name](#stage-name)."
                 }
             }
         }
